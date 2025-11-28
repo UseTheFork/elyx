@@ -1,0 +1,25 @@
+version = 1
+revision = 3
+requires-python = ">=3.13"
+
+[manifest]
+members = [
+    "base",
+    "elyx",
+    "elyxate",
+]
+
+[[package]]
+name = "base"
+version = "0.1.0"
+source = { virtual = "." }
+
+[[package]]
+name = "elyx"
+version = "0.1.0"
+source = { editable = "elyx" }
+
+[[package]]
+name = "elyxate"
+version = "0.1.0"
+source = { editable = "elyxate" }

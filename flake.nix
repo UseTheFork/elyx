@@ -21,6 +21,8 @@
       inputs.uv2nix.follows = "uv2nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    byte.url = "/home/sincore/source/byte";
   };
 
   outputs =
@@ -58,7 +60,12 @@
         {
           systems = import inputs.systems;
           perSystem =
-            { pkgs, lib, ... }:
+            {
+              pkgs,
+              lib,
+              inputs',
+              ...
+            }:
             let
               python = pkgs.python312;
 
@@ -75,7 +82,7 @@
                   );
 
               # Create production virtual environment with only runtime dependencies
-              prodVirtualenv = pythonSet.mkVirtualEnv "byte" workspace.deps.default;
+              prodVirtualenv = pythonSet.mkVirtualEnv "elyx" workspace.deps.default;
             in
 
             {
@@ -99,6 +106,8 @@
                   pkgs.alejandra # Nix
                   pkgs.yamlfmt # YAML
                   pkgs.keep-sorted # General Sorting tool
+
+                  inputs'.byte.packages.default
 
                 ];
               };

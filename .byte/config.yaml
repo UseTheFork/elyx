@@ -1,0 +1,49 @@
+boot:
+  read_only_files: []
+  editable_files: []
+cli:
+  ui_theme: mocha
+  syntax_theme: monokai
+development:
+  enable: false
+edit_format:
+  enable_shell_commands: false
+  mask_message_count: 1
+files:
+  watch:
+    enable: true
+  ignore:
+  - .byte/cache
+  - .ruff_cache
+  - .idea
+  - .venv
+  - .env
+  - .git
+  - .pytest_cache
+  - __pycache__
+  - node_modules
+  - dist
+lint:
+  enable: false
+  commands: []
+llm:
+  model: anthropic
+  gemini:
+    enable: false
+    model_params: {}
+  anthropic:
+    enable: false
+    model_params: {}
+  openai:
+    enable: false
+    model_params: {}
+lsp:
+  enable: false
+  timeout: 30
+  servers: {}
+presets: []
+system:
+  paths: {}
+web:
+  enable: true
+  chrome_binary_location: /etc/profiles/per-user/sincore/bin/google-chrome-stable
