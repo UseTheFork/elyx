@@ -4,22 +4,22 @@ requires-python = ">=3.13"
 
 [manifest]
 members = [
-    "base",
     "elyx",
-    "elyxate",
+    "example",
 ]
-
-[[package]]
-name = "base"
-version = "0.1.0"
-source = { virtual = "." }
 
 [[package]]
 name = "elyx"
 version = "0.1.0"
-source = { editable = "elyx" }
+source = { editable = "." }
 
 [[package]]
-name = "elyxate"
+name = "example"
 version = "0.1.0"
-source = { editable = "elyxate" }
+source = { virtual = "example" }
+dependencies = [
+    { name = "elyx" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "elyx", editable = "." }]

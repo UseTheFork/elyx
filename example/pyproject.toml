@@ -1,5 +1,5 @@
 [project]
-name = "elyx"
+name = "example"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -7,11 +7,7 @@ authors = [
     { name = "use-the-fork", email = "23747916+use-the-fork@users.noreply.github.com" },
 ]
 requires-python = ">=3.13"
-dependencies = ["elyxate"]
+dependencies = ["elyx"]
 
-[project.scripts]
-elyx = "elyx:main"
-
-[build-system]
-requires = ["uv_build>=0.8.14,<0.9.0"]
-build-backend = "uv_build"
+[tool.uv.sources]
+elyx = { workspace = true }

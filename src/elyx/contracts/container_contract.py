@@ -6,7 +6,7 @@ T = TypeVar("T")
 
 class ContainerContract(ABC):
     @abstractmethod
-    def get(self, id: str | type[T]):
+    async def get(self, id: str | type[T]):
         """
         Finds an entry of the container by its identifier and returns it.
 
@@ -106,7 +106,7 @@ class ContainerContract(ABC):
         pass
 
     @abstractmethod
-    def make(self, abstract: str | type[T], parameters: dict[str, Any] | None = None) -> T | Any:
+    async def make(self, abstract: str | type[T], parameters: dict[str, Any] | None = None) -> T | Any:
         """
         Resolve the given type from the container.
 
@@ -123,7 +123,7 @@ class ContainerContract(ABC):
         pass
 
     @abstractmethod
-    def call(
+    async def call(
         self,
         callback: Callable | str,
         parameters: dict[str, Any] | None = None,
@@ -155,35 +155,35 @@ class ContainerContract(ABC):
         """
         pass
 
-    @abstractmethod
-    def before_resolving(self, abstract: str | type[T] | Callable, callback: Callable | None = None) -> None:
-        """
-        Register a new before resolving callback.
+    # @abstractmethod
+    # def before_resolving(self, abstract: str | type[T] | Callable, callback: Callable | None = None) -> None:
+    #     """
+    #     Register a new before resolving callback.
 
-        Args:
-            abstract: Abstract type identifier or closure.
-            callback: Callback to execute before resolving.
-        """
-        pass
+    #     Args:
+    #         abstract: Abstract type identifier or closure.
+    #         callback: Callback to execute before resolving.
+    #     """
+    #     pass
 
-    @abstractmethod
-    def resolving(self, abstract: str | type[T] | Callable, callback: Callable | None = None) -> None:
-        """
-        Register a new resolving callback.
+    # @abstractmethod
+    # def resolving(self, abstract: str | type[T] | Callable, callback: Callable | None = None) -> None:
+    #     """
+    #     Register a new resolving callback.
 
-        Args:
-            abstract: Abstract type identifier or closure.
-            callback: Callback to execute during resolving.
-        """
-        pass
+    #     Args:
+    #         abstract: Abstract type identifier or closure.
+    #         callback: Callback to execute during resolving.
+    #     """
+    #     pass
 
-    @abstractmethod
-    def after_resolving(self, abstract: str | type[T] | Callable, callback: Callable | None = None) -> None:
-        """
-        Register a new after resolving callback.
+    # @abstractmethod
+    # def after_resolving(self, abstract: str | type[T] | Callable, callback: Callable | None = None) -> None:
+    #     """
+    #     Register a new after resolving callback.
 
-        Args:
-            abstract: Abstract type identifier or closure.
-            callback: Callback to execute after resolving.
-        """
-        pass
+    #     Args:
+    #         abstract: Abstract type identifier or closure.
+    #         callback: Callback to execute after resolving.
+    #     """
+    #     pass
