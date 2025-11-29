@@ -4,17 +4,17 @@ from elyx.console.argument_parser import ArgumentParser
 
 
 class CommandContract(ABC):
-    @abstractmethod
     @property
+    @abstractmethod
     def name(self) -> str:
         pass
 
-    @abstractmethod
     @property
+    @abstractmethod
     def description(self) -> str:
         pass
 
-    @abstractmethod
     @property
+    @abstractmethod
     def parser(self) -> ArgumentParser:
         pass

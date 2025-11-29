@@ -40,7 +40,7 @@ class ApplicationBuilder:
 
             self._application.booted(register_on_boot)
 
-        self._application.after_resolving(ConsoleKernel, register_commands_callback)
+        # self._application.after_resolving(ConsoleKernel, register_commands_callback)
 
         return self
 
