@@ -3,13 +3,14 @@ from pathlib import Path
 from typing import Optional, TypeVar
 
 from elyx.container import Container
+from elyx.foundation.configuration.application_builder import ApplicationBuilder
 
 T = TypeVar("T")
 
 
 class Application(Container):
     @staticmethod
-    def configure(base_path: Optional[Path] = None) -> "Application":
+    def configure(base_path: Optional[Path] = None) -> ApplicationBuilder:
         """
         Create and configure a new Application instance.
 
@@ -19,7 +20,7 @@ class Application(Container):
         Returns:
             Application instance.
         """
-        return Application(base_path=base_path)
+        return ApplicationBuilder(Application(base_path=base_path)).with_kernels()
 
     def __init__(self, base_path: Optional[Path] = None):
         """Initialize the container with empty registries."""

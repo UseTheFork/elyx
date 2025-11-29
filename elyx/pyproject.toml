@@ -1,0 +1,18 @@
+
+[project]
+name = "elyx"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "use-the-fork", email = "23747916+use-the-fork@users.noreply.github.com" },
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+elyx = "elyx.__main__:main"
+
+[build-system]
+requires = ["uv_build>=0.9.13,<0.10.0"]
+build-backend = "uv_build"

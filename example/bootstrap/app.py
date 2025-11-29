@@ -2,4 +2,6 @@ from pathlib import Path
 
 from elyx.foundation.application import Application
 
-application = Application.configure(Path(__file__))
+from ..app.test_command import TestCommand
+
+application = Application.configure(Path(__file__)).with_commands([TestCommand]).create()

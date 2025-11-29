@@ -1,16 +1,13 @@
 [project]
-name = "elyx"
+name = "elyx-base"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
-requires-python = ">=3.13"
-dependencies = []
+dependencies = ["elyx"]
 
-[project.scripts]
-elyx = "elyx.__main__:main"
+[tool.uv.sources]
+elyx = { workspace = true }
 
 [tool.uv.workspace]
-members = ["example"]
+members = ["elyx", "example"]
 
 [tool.ruff]
 target-version = "py313"
@@ -69,7 +66,7 @@ combine-as-imports = true
 [tool.basedpyright]
 # keep-sorted start
 exclude = ["**/node_modules", "**/__pycache__"]
-include = ["src"]
+include = ["elyx/src", "example/src"]
 pythonPlatform = "All"
 pythonVersion = "3.12"
 reportArgumentType = false
@@ -80,14 +77,4 @@ reportUnnecessaryTypeIgnoreComment = "warning"
 typeCheckingMode = "basic"
 # keep-sorted end
 
-executionEnvironments = [
-    # { root = "src/tests", reportPrivateUsage = false, extraPaths = [
-    #     "src/tests/e2e",
-    # ] },
-    { root = "src" },
-    { root = "example/src" },
-]
-
-[build-system]
-requires = ["uv_build>=0.8.14,<0.9.0"]
-build-backend = "uv_build"
+executionEnvironments = [{ root = "elyx/src" }, { root = "example/src" }]

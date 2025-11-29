@@ -3,9 +3,9 @@ import inspect
 from pathlib import Path
 from typing import List
 
+from elyx.console.application import Application as ConsoleApplication
 from elyx.contracts.console.kernel_contract import KernelContract
 from elyx.foundation.application import Application
-from elyx.foundation.console.application import Application as ConsoleApplication
 
 
 class ConsoleKernel(KernelContract):
@@ -61,6 +61,15 @@ class ConsoleKernel(KernelContract):
         if spec and spec.loader:
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
+
+    def handle(self) -> int:
+        """
+        Handle an incoming console command.
+
+        Returns:
+            Exit status code.
+        """
+        return self.get_elyx().run()
 
     def get_elyx(self) -> ConsoleApplication:
         """
