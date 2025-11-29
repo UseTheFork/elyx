@@ -3,18 +3,29 @@ import inspect
 from pathlib import Path
 from typing import List
 
+from elyx.contracts.console.kernel_contract import KernelContract
+from elyx.foundation.application import Application
+from elyx.foundation.console.application import Application as ConsoleApplication
 
-class ConsoleKernel:
+
+class ConsoleKernel(KernelContract):
     """Console kernel for handling command registration and execution."""
 
-    def __init__(self):
-        self._commands = []
-        self._command_paths = []
-        self._command_route_paths = []
+    app: Application | None = None
+    elyx: ConsoleApplication | None = None
+
+    commands: list = []
+    command_paths: list = []
+    command_route_paths: list = []
+
+    command_started_at: float | None = None
+
+    def __init__(self, app: Application):
+        self.app = app
 
     def add_commands(self, commands: List[type]) -> None:
         """Register command classes directly."""
-        self._commands.extend(commands)
+        self.commands.extend(commands)
 
     def add_command_paths(self, paths: List[Path]) -> None:
         """Register directories to scan for commands."""
@@ -42,7 +53,7 @@ class ConsoleKernel:
             # Find command classes in module
             for name, obj in inspect.getmembers(module):
                 if inspect.isclass(obj) and hasattr(obj, "handle") and not name.startswith("_"):
-                    self._commands.append(obj)
+                    self.commands.append(obj)
 
     def _load_command_routes(self, file: Path) -> None:
         """Load and execute command route file."""
@@ -50,3 +61,22 @@ class ConsoleKernel:
         if spec and spec.loader:
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
+
+    def get_elyx(self) -> ConsoleApplication:
+        """
+        Get the Elyx console application instance.
+
+        Returns:
+            ConsoleApplication instance.
+        """
+        if self.elyx is None:
+            # Create the console application
+            self.elyx = ConsoleApplication(self.app)
+
+            # Register all commands
+            for command in self.commands:
+                # Get command name (assume commands have a 'name' attribute or use class name)
+                command_name = getattr(command, "name", command.__name__.lower())
+                self.elyx.register(command_name, command)
+
+        return self.elyx

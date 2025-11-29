@@ -1,10 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar
-
-T = TypeVar("T")
+from typing import Any
 
 
-class ConsoleKernelContract(ABC):
+class KernelContract(ABC):
     @abstractmethod
     def bootstrap(self) -> None:
         """
@@ -27,7 +25,7 @@ class ConsoleKernelContract(ABC):
         pass
 
     @abstractmethod
-    def call(self, command: str, parameters: dict[str, Any] | None = None, output_buffer: Any | None = None) -> int:
+    def __call__(self, command: str, parameters: dict[str, Any] | None = None, output_buffer: Any | None = None) -> int:
         """
         Run a console command by name.
 
