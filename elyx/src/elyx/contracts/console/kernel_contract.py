@@ -4,14 +4,14 @@ from typing import Any
 
 class KernelContract(ABC):
     @abstractmethod
-    def bootstrap(self) -> None:
+    async def bootstrap(self) -> None:
         """
         Bootstrap the application for console commands.
         """
         pass
 
     @abstractmethod
-    def handle(self, input: Any, output: Any | None = None) -> int:
+    async def handle(self, input: Any, output: Any | None = None) -> int:
         """
         Handle an incoming console command.
 
@@ -25,7 +25,9 @@ class KernelContract(ABC):
         pass
 
     @abstractmethod
-    def __call__(self, command: str, parameters: dict[str, Any] | None = None, output_buffer: Any | None = None) -> int:
+    async def call(
+        self, command: str, parameters: dict[str, Any] | None = None, output_buffer: Any | None = None
+    ) -> int:
         """
         Run a console command by name.
 

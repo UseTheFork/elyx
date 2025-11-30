@@ -1,17 +1,22 @@
+from __future__ import annotations
+
 import importlib.util
 import inspect
 from pathlib import Path
-from typing import List
+from typing import TYPE_CHECKING, Any, List
 
 from elyx.console.application import Application as ConsoleApplication
 from elyx.contracts.console.kernel_contract import KernelContract
-from elyx.foundation.application import Application
+from elyx.foundation.bootstrap.boot_providers import BootProviders
+from elyx.foundation.bootstrap.register_providers import RegisterProviders
+
+if TYPE_CHECKING:
+    from elyx.foundation.application import Application
 
 
 class ConsoleKernel(KernelContract):
     """Console kernel for handling command registration and execution."""
 
-    app: Application | None = None
     elyx: ConsoleApplication | None = None
 
     commands: list = []
@@ -19,9 +24,38 @@ class ConsoleKernel(KernelContract):
     command_route_paths: list = []
 
     command_started_at: float | None = None
+    commands_loaded: bool = False
+
+    def bootstrappers(self):
+        return [BootProviders, RegisterProviders]
 
     def __init__(self, app: Application):
         self.app = app
+
+    async def bootstrap(self) -> None:
+        """
+        Bootstrap the application for artisan commands.
+
+        Returns:
+            None
+        """
+        if not self.app.has_been_bootstrapped():
+            await self.app.bootstrap_with(self.bootstrappers())
+
+        if not self.commands_loaded:
+            # Auto-discover commands from app/commands/ directory
+            if self.app.base_path:
+                commands_dir = self.app.base_path / "app" / "console" / "commands"
+                print(commands_dir)
+                print(commands_dir)
+                print(commands_dir)
+                if commands_dir.exists() and commands_dir.is_dir():
+                    self._discover_commands_from_directory(commands_dir)
+
+            # if self.should_discover_commands():
+            #     self.discover_commands()
+
+            self.commands_loaded = True
 
     def add_commands(self, commands: List[type]) -> None:
         """Register command classes directly."""
@@ -62,14 +96,21 @@ class ConsoleKernel(KernelContract):
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
-    def handle(self) -> int:
+    async def call(
+        self, command: str, parameters: dict[str, Any] | None = None, output_buffer: Any | None = None
+    ) -> int:
+        return await self.get_elyx().call(command, parameters, output_buffer)
+
+    async def handle(self, input: list[str]) -> int:
         """
         Handle an incoming console command.
 
         Returns:
             Exit status code.
         """
-        return self.get_elyx().run()
+        await self.bootstrap()
+
+        return await self.get_elyx().run(input)
 
     def get_elyx(self) -> ConsoleApplication:
         """
@@ -89,3 +130,17 @@ class ConsoleKernel(KernelContract):
                 self.elyx.register(command_name, command)
 
         return self.elyx
+
+    async def all(self):
+        await self.bootstrap()
+
+        return self.get_elyx().all()
+
+    def output(self):
+        pass
+
+    def queue(self):
+        pass
+
+    def terminate(self):
+        pass

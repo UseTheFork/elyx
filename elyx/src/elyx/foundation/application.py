@@ -1,13 +1,21 @@
+import inspect
 from collections.abc import Callable
 from pathlib import Path
 from typing import Optional, TypeVar
 
+from dependency_injector import providers
+
 from elyx.container import Container
+from elyx.foundation.console.kernel import ConsoleKernel
 
 T = TypeVar("T")
 
 
 class Application(Container):
+    _has_been_bootstrapped: bool = False
+    _booted: bool = False
+    _booted_callbacks: list = []
+
     @staticmethod
     def configure(base_path: Optional[Path] = None):
         """
@@ -24,97 +32,70 @@ class Application(Container):
         return ApplicationBuilder(Application(base_path=base_path)).with_kernels()
 
     def __init__(self, base_path: Optional[Path] = None):
-        """Initialize the container with empty registries."""
+        """Initialize the application container."""
         super().__init__()
         self.base_path = base_path
+        # Register self as singleton instance using dependency-injector
+        abstract_str = self._normalize_abstract(Application)
+        setattr(self, abstract_str, providers.Object(self))
 
-    def bind(
-        self,
-        abstract: str | type[T] | Callable,
-        concrete: str | type[T] | Callable | None = None,
-        shared: bool = False,
-    ) -> None:
+    async def handle_command(self, input: list[str]) -> None:
+        kernel = await self.make(ConsoleKernel)
+        status = await kernel.handle(input)
+        # kernel.terminate()
+
+    def has_been_bootstrapped(self) -> bool:
+        return self._has_been_bootstrapped
+
+    async def bootstrap_with(self, bootstrappers: list) -> None:
+        self._has_been_bootstrapped = True
+
+        for bootstrapper in bootstrappers:
+            instance = await self.make(bootstrapper)
+            result = instance.bootstrap(self)
+            if inspect.iscoroutine(result):
+                await result
+
+    async def booted(self, callback):
         """
-        Register a binding with the container.
+        Register a new "booted" listener.
 
         Args:
-            abstract: Abstract type identifier or closure.
-            concrete: Concrete implementation or closure.
-            shared: Whether the binding should be shared (singleton).
+            callback: Callable to execute when application is booted.
+
+        Returns:
+            None
         """
-        # If abstract is a callable and no concrete provided, use abstract as concrete
-        if callable(abstract) and concrete is None:
-            concrete = abstract
-            abstract = abstract.__name__
+        self._booted_callbacks.append(callback)
 
-        # If concrete is None, use abstract as concrete
-        if concrete is None:
-            concrete = abstract
+        if self.is_booted():
+            result = callback(self)
+            if inspect.iscoroutine(result):
+                await result
 
-        abstract_str = self._normalize_abstract(abstract)
-
-        # Remove any existing instance if rebinding
-        self._instances.pop(abstract_str, None)
-
-        # Store the binding
-        self._bindings[abstract_str] = {
-            "concrete": concrete,
-            "shared": shared,
-        }
-
-    def alias(self, abstract: str | type[T], alias: str) -> None:
+    def is_booted(self) -> bool:
         """
-        Alias a type to a different name.
-
-        Args:
-            abstract: Abstract type identifier.
-            alias: Alias name.
-
-        Raises:
-            LogicError: If aliasing fails.
-        """
-        if alias == abstract:
-            raise ValueError(f"[{abstract}] is aliased to itself.")
-
-        self._aliases[alias] = self._normalize_abstract(abstract)
-
-    def _is_alias(self, name: str) -> bool:
-        """
-        Check if a name is an alias.
-
-        Args:
-            name: Name to check.
+        Determine if the application has been booted.
 
         Returns:
             bool
         """
-        return name in self._aliases
+        return self._booted
 
-    def _get_alias(self, abstract: str) -> str:
+    async def boot(self) -> None:
         """
-        Get the alias for an abstract type.
-
-        Args:
-            abstract: Abstract type identifier.
+        Boot the application's service providers.
 
         Returns:
-            The aliased abstract type.
+            None
         """
-        return self._aliases.get(abstract, abstract)
+        if self.is_booted():
+            return
 
-    def flush(self) -> None:
-        """
-        Flush the container of all bindings and resolved instances.
-        """
+        # Fire booted callbacks
+        for callback in self._booted_callbacks:
+            result = callback(self)
+            if inspect.iscoroutine(result):
+                await result
 
-        self._resolved.clear()
-        self._bindings.clear()
-        self._method_bindings.clear()
-        self._instances.clear()
-        self._aliases.clear()
-        self._before_resolving_callbacks.clear()
-        self._resolving_callbacks.clear()
-        self._after_resolving_callbacks.clear()
-        self._global_before_resolving_callbacks.clear()
-        self._global_resolving_callbacks.clear()
-        self._global_after_resolving_callbacks.clear()
+        self._booted = True

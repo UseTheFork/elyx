@@ -4,7 +4,7 @@ from typing import Any
 
 class ApplicationContract(ABC):
     @abstractmethod
-    def __call__(self, command: str, parameters: dict[str, Any] | None = None, output_buffer: Any | None = None) -> int:
+    def call(self, command: str, parameters: dict[str, Any] | None = None, output_buffer: Any | None = None) -> int:
         """
         Run an Artisan console command by name.
 

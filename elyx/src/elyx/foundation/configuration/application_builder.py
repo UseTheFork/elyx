@@ -1,5 +1,7 @@
 from typing import Optional
 
+from dependency_injector import providers
+
 from elyx.foundation.application import Application
 from elyx.foundation.console.kernel import ConsoleKernel
 
@@ -16,7 +18,15 @@ class ApplicationBuilder:
         Returns:
             ApplicationBuilder instance for chaining.
         """
-        self._application.singleton(ConsoleKernel, ConsoleKernel)
+        # Register ConsoleKernel with explicit dependency injection
+        abstract_str = self._application._normalize_abstract(ConsoleKernel)
+        app_abstract_str = self._application._normalize_abstract(Application)
+
+        setattr(
+            self._application,
+            abstract_str,
+            providers.Singleton(ConsoleKernel, app=getattr(self._application, app_abstract_str)),
+        )
 
         return self
 
@@ -34,13 +44,13 @@ class ApplicationBuilder:
             commands = []
 
         # Register callback to run after console kernel is resolved
-        async def register_commands_callback(kernel):
+        async def register_commands_callback(kernel, app):
             def register_on_boot():
                 kernel.add_commands(commands)
 
-            self._application.booted(register_on_boot)
+            await self._application.booted(register_on_boot)
 
-        # self._application.after_resolving(ConsoleKernel, register_commands_callback)
+        self._application.after_resolving(ConsoleKernel, register_commands_callback)
 
         return self
 
