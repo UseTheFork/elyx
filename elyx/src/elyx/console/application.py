@@ -21,7 +21,7 @@ class Application(ApplicationContract):
         self.elyx = elyx
         self._commands = {}
         self._output = ""
-        self.console = Console()  # Add Rich console here
+        self.console = Console()
         self.command_loader = None
 
         self.bootstrap()
