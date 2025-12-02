@@ -4,7 +4,7 @@ from typing import Optional, TypeVar
 
 from dependency_injector import providers
 
-from elyx.container import Container
+from elyx.container.container import Container
 from elyx.foundation.console.kernel import ConsoleKernel
 
 T = TypeVar("T")
@@ -36,10 +36,10 @@ class Application(Container):
         self.base_path = base_path
         # Register self as singleton instance using dependency-injector
         abstract_str = self._normalize_abstract(Application)
-        setattr(self, abstract_str, providers.Object(self))
+        setattr(self._bindings, abstract_str, providers.Object(self))
 
     async def handle_command(self, input: list[str]) -> None:
-        kernel = await self.make(ConsoleKernel)
+        kernel = await self.make(ConsoleKernel, app=self)
         status = await kernel.handle(input)
         # kernel.terminate()
 

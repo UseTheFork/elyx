@@ -14,6 +14,9 @@ if TYPE_CHECKING:
     from elyx.foundation.application import Application
 
 
+# AI: would it make more sense to create various mixins to inject things like `Application` then we can do a check in make and boot these mixens etc ai?
+
+
 class ConsoleKernel(KernelContract):
     """Console kernel for handling command registration and execution."""
 
@@ -27,7 +30,10 @@ class ConsoleKernel(KernelContract):
     commands_loaded: bool = False
 
     def bootstrappers(self):
-        return [BootProviders, RegisterProviders]
+        return [
+            RegisterProviders,
+            BootProviders,
+        ]
 
     def __init__(self, app: Application):
         self.app = app

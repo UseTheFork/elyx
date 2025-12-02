@@ -20,13 +20,10 @@ class ApplicationBuilder:
         """
         # Register ConsoleKernel with explicit dependency injection
         abstract_str = self._application._normalize_abstract(ConsoleKernel)
-        app_abstract_str = self._application._normalize_abstract(Application)
 
-        setattr(
-            self._application,
-            abstract_str,
-            providers.Singleton(ConsoleKernel, app=getattr(self._application, app_abstract_str)),
-        )
+        # Use self._application directly, not getattr
+        provider = providers.Singleton(ConsoleKernel, app=self._application)
+        setattr(self._application._bindings, abstract_str, provider)
 
         return self
 

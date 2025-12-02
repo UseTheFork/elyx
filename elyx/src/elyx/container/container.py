@@ -1,7 +1,6 @@
 from typing import Any, Callable, TypeVar
 
 from dependency_injector import containers, providers
-
 from elyx.contracts.container.container_contract import ContainerContract
 
 T = TypeVar("T")
@@ -11,6 +10,13 @@ class Container(containers.DynamicContainer, ContainerContract):
     """
     Dependency injection container wrapping dependency-injector.
     """
+
+    def __init__(self):
+        super().__init__()
+        # Use a DynamicContainer instance for storing bindings
+        self._bindings = containers.DynamicContainer()
+        self._instances = {}
+        self._aliases = {}
 
     def bound(self, abstract) -> bool:
         """
@@ -23,7 +29,7 @@ class Container(containers.DynamicContainer, ContainerContract):
             bool
         """
         abstract_str = self._normalize_abstract(abstract)
-        return hasattr(self, abstract_str)
+        return hasattr(self._bindings, abstract_str) or abstract_str in self._instances or abstract_str in self._aliases
 
     def has(self, id: str) -> bool:
         """
@@ -46,8 +52,19 @@ class Container(containers.DynamicContainer, ContainerContract):
 
         Returns:
             Entry.
+
+        Raises:
+            EntryNotFoundException: If the entry is not found.
         """
-        return await self.make(id)
+        from elyx.container.exceptions import EntryNotFoundException
+
+        try:
+            return await self.make(id)
+        except Exception as e:
+            if self.has(id):
+                raise
+
+            raise EntryNotFoundException(id) from e
 
     def resolved(self, abstract) -> bool:
         """
@@ -60,10 +77,11 @@ class Container(containers.DynamicContainer, ContainerContract):
             bool
         """
         abstract_str = self._normalize_abstract(abstract)
-        if not hasattr(self, abstract_str):
-            return False
-        provider = getattr(self, abstract_str)
-        return isinstance(provider, providers.Singleton) and provider.is_provided
+
+        if self.is_alias(abstract_str):
+            abstract_str = self.get_alias(abstract_str)
+
+        return abstract_str in self._resolved or abstract_str in self._instances
 
     async def make(self, abstract, **kwargs) -> T | Any:
         """
@@ -78,17 +96,17 @@ class Container(containers.DynamicContainer, ContainerContract):
         """
         abstract_str = self._normalize_abstract(abstract)
 
-        if not hasattr(self, abstract_str):
+        if not hasattr(self._bindings, abstract_str):
             # Auto-wire if it's a class
             if isinstance(abstract, type):
                 provider = providers.Factory(abstract)
-                setattr(self, abstract_str, provider)
+                setattr(self._bindings, abstract_str, provider)
             else:
                 from elyx.exceptions import EntryNotFoundException
 
                 raise EntryNotFoundException(abstract_str)
 
-        provider = getattr(self, abstract_str)
+        provider = getattr(self._bindings, abstract_str)
 
         if kwargs:
             return provider(**kwargs)
@@ -122,7 +140,7 @@ class Container(containers.DynamicContainer, ContainerContract):
         else:
             provider = providers.Factory(concrete)
 
-        setattr(self, abstract_str, provider)
+        setattr(self._bindings, abstract_str, provider)
 
     def singleton(
         self,
@@ -138,6 +156,38 @@ class Container(containers.DynamicContainer, ContainerContract):
         """
         self.bind(abstract, concrete, shared=True)
 
+    def instance(self, abstract, instance: T) -> T:
+        """
+        Register an existing instance as shared in the container.
+
+        Args:
+            abstract: Abstract type identifier.
+            instance: The instance to register.
+
+        Returns:
+            The registered instance.
+        """
+        abstract_str = self._normalize_abstract(abstract)
+
+        # is_bound = self.bound(abstract_str)
+
+        # Remove any existing alias
+        if abstract_str in self._aliases:
+            del self._aliases[abstract_str]
+
+        # Store the instance
+        self._instances[abstract_str] = instance
+
+        # Create a singleton provider that returns this instance
+        provider = providers.Singleton(lambda: instance)
+        setattr(self._bindings, abstract_str, provider)
+
+        # TODO: Implement rebound callbacks if needed
+        # if is_bound:
+        #     self.rebound(abstract_str)
+
+        return instance
+
     def alias(self, abstract, alias) -> None:
         """
         Alias a type to a different name.
@@ -147,21 +197,47 @@ class Container(containers.DynamicContainer, ContainerContract):
             alias: Alias name.
         """
         abstract_str = self._normalize_abstract(abstract)
-        if not hasattr(self, abstract_str):
+        if not hasattr(self._bindings, abstract_str):
             raise ValueError(f"Cannot alias unbound abstract: {abstract_str}")
 
-        provider = getattr(self, abstract_str)
-        setattr(self, alias, provider)
+        provider = getattr(self._bindings, abstract_str)
+        setattr(self._bindings, alias, provider)
+
+    def is_alias(self, name: str) -> bool:
+        """
+        Determine if a given string is an alias.
+
+        Args:
+            name: Name to check.
+
+        Returns:
+            bool
+        """
+        return name in self._aliases
+
+    def get_alias(self, abstract) -> str:
+        """
+        Get the alias for an abstract if available.
+
+        Args:
+            abstract: Abstract type identifier.
+
+        Returns:
+            The resolved alias or the original abstract if no alias exists.
+        """
+        if abstract in self._aliases:
+            return self.get_alias(self._aliases[abstract])
+        return abstract
 
     def flush(self) -> None:
         """
         Flush the container of all bindings and resolved instances.
         """
-        self.reset_singletons()
-        # Remove all providers
-        for attr_name in list(self.__dict__.keys()):
+        self._bindings.reset_singletons()
+        # Remove all providers from _bindings
+        for attr_name in list(self._bindings.__dict__.keys()):
             if not attr_name.startswith("_"):
-                delattr(self, attr_name)
+                delattr(self._bindings, attr_name)
 
     async def call(
         self,
@@ -230,3 +306,43 @@ class Container(containers.DynamicContainer, ContainerContract):
         # Note: dependency-injector doesn't have built-in callback support
         # This is a placeholder to maintain API compatibility
         pass
+
+    async def factory(self, abstract):
+        """
+        Resolve the given type from the container as a factory.
+
+        Args:
+            abstract: Abstract type identifier or class.
+
+        Returns:
+            Resolved instance.
+        """
+        return await self.make(abstract)
+
+    async def make_with(self, abstract, **kwargs):
+        """
+        Resolve the given type from the container with parameters.
+
+        Args:
+            abstract: Abstract type identifier or class.
+            **kwargs: Parameters to pass to the constructor.
+
+        Returns:
+            Resolved instance.
+        """
+        return await self.make(abstract, **kwargs)
+
+    def wrap(self, callback: Callable, parameters: dict[str, Any] | None = None) -> Callable:
+        """
+        Wrap the given closure such that its dependencies will be injected when executed.
+
+        Args:
+            callback: Callable to wrap.
+            parameters: Parameters to pass to the callback.
+
+        Returns:
+            Wrapped callable that will inject dependencies when called.
+        """
+        if parameters is None:
+            parameters = {}
+        return lambda: self.call(callback, parameters)
