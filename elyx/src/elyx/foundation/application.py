@@ -2,8 +2,6 @@ import inspect
 from pathlib import Path
 from typing import Optional, TypeVar
 
-from dependency_injector import providers
-
 from elyx.container.container import Container
 from elyx.foundation.console.kernel import ConsoleKernel
 
@@ -34,9 +32,28 @@ class Application(Container):
         """Initialize the application container."""
         super().__init__()
         self.base_path = base_path
-        # Register self as singleton instance using dependency-injector
-        abstract_str = self._normalize_abstract(Application)
-        setattr(self._bindings, abstract_str, providers.Object(self))
+
+        self._register_base_bindings()
+        self._register_base_service_providers()
+
+    def _register_base_bindings(self):
+        """Register the basic bindings into the container."""
+        self.instance("app", self)
+        self.instance(Application, self)
+        self.instance(Container, self)
+
+    def _register_base_service_providers(self):
+        """Register all of the base service providers."""
+        # TODO: This
+        pass
+
+    def _register_core_container_aliases(self):
+        """Register the core class aliases in the container."""
+        # aliases = {
+        #     'config':
+        # }
+        # TODO: This
+        pass
 
     async def handle_command(self, input: list[str]) -> None:
         kernel = await self.make(ConsoleKernel, app=self)
