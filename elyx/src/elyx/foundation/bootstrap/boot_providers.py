@@ -7,5 +7,8 @@ if TYPE_CHECKING:
 
 
 class BootProviders:
+    def __init__(self, **kwargs):
+        pass
+
     async def bootstrap(self, app: Application) -> None:
         await app.boot()

@@ -1,5 +1,4 @@
 import inspect
-from collections.abc import Callable
 from pathlib import Path
 from typing import Optional, TypeVar
 

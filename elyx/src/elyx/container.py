@@ -2,7 +2,7 @@ from typing import Any, Callable, TypeVar
 
 from dependency_injector import containers, providers
 
-from elyx.contracts.container_contract import ContainerContract
+from elyx.contracts.container.container_contract import ContainerContract
 
 T = TypeVar("T")
 

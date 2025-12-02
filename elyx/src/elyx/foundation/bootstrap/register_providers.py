@@ -10,6 +10,9 @@ if TYPE_CHECKING:
 
 
 class RegisterProviders:
+    def __init__(self, **kwargs):
+        pass
+
     async def bootstrap(self, app: Application) -> None:
         """
         Register all service providers with the application.

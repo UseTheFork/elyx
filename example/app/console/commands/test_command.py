@@ -4,16 +4,18 @@ from elyx.console.command import Command
 class TestCommand(Command):
     """A simple test command to verify the setup is working."""
 
-    @property
-    def name(self) -> str:
-        return "test"
+    signature: str = """test {user} {--queue : Whether the job should be queued}"""
 
-    @property
-    def description(self) -> str:
-        return "Test command to verify setup"
+    description: str = "Test command to verify setup"
 
-    def handle(self):
+    async def handle(self):
         """Execute the test command."""
         print("Test command executed successfully!")
         print("Setup is working as expected.")
+
+        print(123)
+        print(123)
+        print(self.options())
+        print(123)
+
         return 0

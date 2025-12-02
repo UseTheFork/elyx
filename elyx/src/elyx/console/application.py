@@ -1,7 +1,9 @@
 from typing import Any
 
+from elyx.console.console import Console
+from elyx.console.container_command_loader import ContainerCommandLoader
 from elyx.contracts.console.application_contract import ApplicationContract
-from elyx.contracts.container_contract import ContainerContract
+from elyx.contracts.container.container_contract import ContainerContract
 
 
 class Application(ApplicationContract):
@@ -19,6 +21,8 @@ class Application(ApplicationContract):
         self.elyx = elyx
         self._commands = {}
         self._output = ""
+        self.console = Console()  # Add Rich console here
+        self.command_loader = None
 
         self.bootstrap()
 
@@ -33,7 +37,10 @@ class Application(ApplicationContract):
             bootstrapper(self)
 
     async def call(
-        self, command: str, parameters: dict[str, Any] | None = None, output_buffer: Any | None = None
+        self,
+        command: str,
+        parameters: dict[str, Any] = {},
+        output_buffer: Any | None = None,
     ) -> int:
         """
         Run a console command by name.
@@ -46,11 +53,6 @@ class Application(ApplicationContract):
         Returns:
             Exit status code (0 for success, non-zero for error).
         """
-        if parameters is None:
-            parameters = {}
-
-        print(123)
-        print(self._commands)
 
         # Check if command exists
         if command not in self._commands:
@@ -62,8 +64,15 @@ class Application(ApplicationContract):
             command_class = self._commands[command]
             command_instance = await self.elyx.make(command_class)
 
+            command_instance.console = self.console
+
+            # Parse arguments if parameters provided as list
+            if isinstance(parameters, list):
+                command_instance.parse_args(parameters)
+                parameters = {}
+
             # Execute the command
-            result = command_instance.handle(**parameters)
+            result = await command_instance.handle(**parameters)
 
             # Capture output if buffer provided
             if output_buffer is not None:
@@ -102,22 +111,72 @@ class Application(ApplicationContract):
         """
         args = input[1:]
 
-        if not args:
-            self._print_available_commands()
-            return 0
-
         command_name = args[0]
+        remaining_args = args[1:]
 
-        # Parse remaining args as parameters (simple implementation)
-        parameters = {}
-
-        return await self.call(command_name, parameters)
-
-    def _print_available_commands(self) -> None:
-        """Print available commands."""
-        print("Available commands:")
-        for name in self._commands.keys():
-            print(f"  {name}")
+        return await self.call(command_name, remaining_args)
 
     def terminate(self) -> None:
         pass
+
+    def resolve(self, command):
+        """
+        Resolve a command and add it to the application.
+
+        Args:
+            command: Command class or instance to resolve.
+
+        Returns:
+            Self for method chaining.
+        """
+        from elyx.console.command import Command
+
+        if isinstance(command, type) and issubclass(command, Command):
+            # Instantiate to get the name from signature
+            command_instance = command()
+            command_instance.set_elyx(self)
+
+            command_name = command_instance.name
+            self.register(command_name, command)
+        elif isinstance(command, Command):
+            # Already an instance
+            command_name = command.name
+            self.register(command_name, command.__class__)
+
+    def resolve_commands(self, commands: list) -> "Application":
+        """
+        Resolve and register multiple commands with the application.
+
+        Args:
+            commands: List of command classes to resolve and register.
+
+        Returns:
+            Self for method chaining.
+        """
+        for command in commands:
+            self.resolve(command)
+
+        return self
+
+    def set_command_loader(self, command_map: dict) -> None:
+        """
+        Set the command loader with a command map.
+
+        Args:
+            command_map: Dictionary mapping command names to command classes.
+        """
+        self.command_loader = ContainerCommandLoader(self.elyx, command_map)
+
+    async def get_command(self, name: str):
+        """
+        Get a command by name from the command loader.
+
+        Args:
+            name: The command name.
+
+        Returns:
+            Command instance.
+        """
+        if self.command_loader and self.command_loader.has(name):
+            return await self.command_loader.get(name)
+        return None

@@ -46,9 +46,6 @@ class ConsoleKernel(KernelContract):
             # Auto-discover commands from app/commands/ directory
             if self.app.base_path:
                 commands_dir = self.app.base_path / "app" / "console" / "commands"
-                print(commands_dir)
-                print(commands_dir)
-                print(commands_dir)
                 if commands_dir.exists() and commands_dir.is_dir():
                     self._discover_commands_from_directory(commands_dir)
 
@@ -56,6 +53,18 @@ class ConsoleKernel(KernelContract):
             #     self.discover_commands()
 
             self.commands_loaded = True
+
+    def _discover_commands_from_directory(self, directory: Path) -> None:
+        """
+        Auto-discover command classes from a directory.
+
+        Args:
+            directory: Path to the directory containing command files.
+        """
+        for file in directory.glob("*.py"):
+            if file.name.startswith("_"):
+                continue
+            self._load_commands_from_file(file)
 
     def add_commands(self, commands: List[type]) -> None:
         """Register command classes directly."""
@@ -108,9 +117,14 @@ class ConsoleKernel(KernelContract):
         Returns:
             Exit status code.
         """
-        await self.bootstrap()
+        try:
+            await self.bootstrap()
 
-        return await self.get_elyx().run(input)
+            return await self.get_elyx().run(input)
+        except Exception as e:
+            print("TODO: ADD EXCEPTIONS CATCHING HERE")
+            print(e)
+            return 1
 
     def get_elyx(self) -> ConsoleApplication:
         """
@@ -124,10 +138,7 @@ class ConsoleKernel(KernelContract):
             self.elyx = ConsoleApplication(self.app)
 
             # Register all commands
-            for command in self.commands:
-                # Get command name (assume commands have a 'name' attribute or use class name)
-                command_name = getattr(command, "name", command.__name__.lower())
-                self.elyx.register(command_name, command)
+            self.elyx.resolve_commands(self.commands)
 
         return self.elyx
 

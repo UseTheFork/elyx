@@ -1,10 +1,12 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Any, Callable, TypeVar
+
+from elyx.contracts.container.container_interface_contract import ContainerInterfaceContract
 
 T = TypeVar("T")
 
 
-class ContainerContract(ABC):
+class ContainerContract(ContainerInterfaceContract):
     @abstractmethod
     async def get(self, id: str | type[T]):
         """
