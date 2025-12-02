@@ -12,7 +12,7 @@ class Container(containers.DynamicContainer, ContainerContract):
     Dependency injection container wrapping dependency-injector.
     """
 
-    def bound(self, abstract: str | type[T]) -> bool:
+    def bound(self, abstract) -> bool:
         """
         Determine if the given abstract type has been bound.
 
@@ -25,7 +25,7 @@ class Container(containers.DynamicContainer, ContainerContract):
         abstract_str = self._normalize_abstract(abstract)
         return hasattr(self, abstract_str)
 
-    def has(self, id: str | type[T]) -> bool:
+    def has(self, id: str) -> bool:
         """
         Returns true if the container can return an entry for the given identifier.
 
@@ -37,7 +37,7 @@ class Container(containers.DynamicContainer, ContainerContract):
         """
         return self.bound(id)
 
-    async def get(self, id: str | type[T]) -> T | Any:
+    async def get(self, id: str) -> T | Any:
         """
         Finds an entry of the container by its identifier and returns it.
 
@@ -49,7 +49,7 @@ class Container(containers.DynamicContainer, ContainerContract):
         """
         return await self.make(id)
 
-    def resolved(self, abstract: str | type[T]) -> bool:
+    def resolved(self, abstract) -> bool:
         """
         Determine if the given abstract type has been resolved.
 
@@ -65,7 +65,7 @@ class Container(containers.DynamicContainer, ContainerContract):
         provider = getattr(self, abstract_str)
         return isinstance(provider, providers.Singleton) and provider.is_provided
 
-    async def make(self, abstract: str | type[T], **kwargs) -> T | Any:
+    async def make(self, abstract, **kwargs) -> T | Any:
         """
         Resolve the given type from the container.
 
@@ -96,8 +96,8 @@ class Container(containers.DynamicContainer, ContainerContract):
 
     def bind(
         self,
-        abstract: str | type[T] | Callable,
-        concrete: str | type[T] | Callable | None = None,
+        abstract,
+        concrete=None,
         shared: bool = False,
     ) -> None:
         """
@@ -126,8 +126,8 @@ class Container(containers.DynamicContainer, ContainerContract):
 
     def singleton(
         self,
-        abstract: str | type[T] | Callable,
-        concrete: str | type[T] | Callable | None = None,
+        abstract,
+        concrete=None,
     ) -> None:
         """
         Register a shared binding in the container.
@@ -138,7 +138,7 @@ class Container(containers.DynamicContainer, ContainerContract):
         """
         self.bind(abstract, concrete, shared=True)
 
-    def alias(self, abstract: str | type[T], alias: str) -> None:
+    def alias(self, abstract, alias) -> None:
         """
         Alias a type to a different name.
 
@@ -165,7 +165,7 @@ class Container(containers.DynamicContainer, ContainerContract):
 
     async def call(
         self,
-        callback: Callable | str,
+        callback,
         parameters: dict[str, Any] | None = None,
         default_method: str | None = None,
     ) -> Any:

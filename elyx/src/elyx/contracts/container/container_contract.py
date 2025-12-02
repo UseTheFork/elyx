@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from elyx.contracts.container.container_interface_contract import ContainerInterfaceContract
 
@@ -8,41 +8,7 @@ T = TypeVar("T")
 
 class ContainerContract(ContainerInterfaceContract):
     @abstractmethod
-    async def get(self, id: str | type[T]):
-        """
-        Finds an entry of the container by its identifier and returns it.
-
-        Args:
-            id: Identifier of the entry to look for.
-
-        Returns:
-            Entry.
-
-        Raises:
-            NotFoundExceptionInterface: No entry was found for this identifier.
-            ContainerExceptionInterface: Error while retrieving the entry.
-        """
-        pass
-
-    @abstractmethod
-    def has(self, id: str | type[T]) -> bool:
-        """
-        Returns true if the container can return an entry for the given identifier.
-        Returns false otherwise.
-
-        `has(id)` returning true does not mean that `get(id)` will not throw an exception.
-        It does however mean that `get(id)` will not throw a `NotFoundExceptionInterface`.
-
-        Args:
-            id: Identifier of the entry to look for.
-
-        Returns:
-            bool
-        """
-        pass
-
-    @abstractmethod
-    def bound(self, abstract: str | type[T]) -> bool:
+    def bound(self, abstract) -> bool:
         """
         Determine if the given abstract type has been bound.
 
@@ -55,7 +21,7 @@ class ContainerContract(ContainerInterfaceContract):
         pass
 
     @abstractmethod
-    def alias(self, abstract: str | type[T], alias: str) -> None:
+    def alias(self, abstract, alias) -> None:
         """
         Alias a type to a different name.
 
@@ -71,8 +37,8 @@ class ContainerContract(ContainerInterfaceContract):
     @abstractmethod
     def bind(
         self,
-        abstract: str | type[T] | Callable,
-        concrete: str | type[T] | Callable | None = None,
+        abstract,
+        concrete=None,
         shared: bool = False,
     ) -> None:
         """
@@ -88,8 +54,8 @@ class ContainerContract(ContainerInterfaceContract):
     @abstractmethod
     def singleton(
         self,
-        abstract: str | type[T] | Callable,
-        concrete: str | type[T] | Callable | None = None,
+        abstract,
+        concrete=None,
     ) -> None:
         """
         Register a shared binding in the container.
@@ -108,7 +74,7 @@ class ContainerContract(ContainerInterfaceContract):
         pass
 
     @abstractmethod
-    async def make(self, abstract: str | type[T], parameters: dict[str, Any] | None = None) -> T | Any:
+    async def make(self, abstract, parameters: dict[str, Any] | None = None) -> T | Any:
         """
         Resolve the given type from the container.
 
@@ -127,7 +93,7 @@ class ContainerContract(ContainerInterfaceContract):
     @abstractmethod
     async def call(
         self,
-        callback: Callable | str,
+        callback,
         parameters: dict[str, Any] | None = None,
         default_method: str | None = None,
     ) -> Any:
@@ -145,7 +111,7 @@ class ContainerContract(ContainerInterfaceContract):
         pass
 
     @abstractmethod
-    def resolved(self, abstract: str | type[T]) -> bool:
+    def resolved(self, abstract) -> bool:
         """
         Determine if the given abstract type has been resolved.
 

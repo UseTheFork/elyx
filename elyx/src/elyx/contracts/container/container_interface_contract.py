@@ -12,6 +12,10 @@ class ContainerInterfaceContract(ABC):
 
         Returns:
             Entry.
+
+        Raises:
+            NotFoundExceptionInterface: No entry was found for this identifier.
+            ContainerExceptionInterface: Error while retrieving the entry.
         """
         pass
 
@@ -19,6 +23,10 @@ class ContainerInterfaceContract(ABC):
     def has(self, id: str) -> bool:
         """
         Returns true if the container can return an entry for the given identifier.
+        Returns false otherwise.
+
+        `has(id)` returning true does not mean that `get(id)` will not throw an exception.
+        It does however mean that `get(id)` will not throw a `NotFoundExceptionInterface`.
 
         Args:
             id: Identifier of the entry to look for.
