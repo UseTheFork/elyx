@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Optional
 
 from dependency_injector import providers
@@ -37,13 +38,25 @@ class ApplicationBuilder:
         Returns:
             ApplicationBuilder instance for chaining.
         """
-        if commands is None:
-            commands = []
+
+        # Auto-discover commands from app/Console/Commands if no commands provided
+        if not commands:
+            console_commands_path = Path(self._application.path("console/commands"))
+            print(console_commands_path)
+            print(console_commands_path)
+            print(console_commands_path)
+            if console_commands_path.exists():
+                commands = [console_commands_path]
 
         # Register callback to run after console kernel is resolved
         async def register_commands_callback(kernel, app):
             def register_on_boot():
-                kernel.add_commands(commands)
+                # Check if commands are paths or classes
+                for command in commands:
+                    if isinstance(command, Path):
+                        kernel.add_command_paths([command])
+                    else:
+                        kernel.add_commands([command])
 
             await self._application.booted(register_on_boot)
 

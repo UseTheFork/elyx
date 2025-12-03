@@ -13,6 +13,9 @@ class Application(Container):
     _booted: bool = False
     _booted_callbacks: list = []
 
+    _environment_path = None
+    _environment_file = ".env"
+
     @staticmethod
     def configure(base_path: Optional[Path] = None):
         """
@@ -31,7 +34,8 @@ class Application(Container):
     def __init__(self, base_path: Optional[Path] = None):
         """Initialize the application container."""
         super().__init__()
-        self.base_path = base_path
+        if base_path:
+            self.set_base_path(base_path)
 
         self._register_base_bindings()
         self._register_base_service_providers()
@@ -115,3 +119,165 @@ class Application(Container):
                 await result
 
         self._booted = True
+
+    def join_paths(self, base_path: str | Path, path: str = "") -> Path:
+        """
+        Join the given paths together.
+
+        Args:
+            base_path: The base path.
+            path: The path to join (optional).
+
+        Returns:
+            The joined path as a Path object.
+        """
+
+        base = Path(base_path)
+        if path:
+            return base / path
+        return base
+
+    def path(self, path: str = "") -> Path:
+        """
+        Get the path to the application "app" directory.
+
+        Args:
+            path: Optional path to append to the app directory.
+
+        Returns:
+            The full path to the app directory or subdirectory.
+        """
+        app_path = getattr(self, "_app_path", None)
+        base = app_path if app_path else self.join_paths(self.base_path(), "app")
+        return self.join_paths(base, path)
+
+    def set_base_path(self, base_path: Path):
+        """Set the base path for the application."""
+        self._base_path = base_path
+
+        self.bind_paths_in_container()
+
+        return self
+
+    def bind_paths_in_container(self):
+        """Set the base path for the application."""
+        self.instance("path", self.path())
+        self.instance("path.base", self.base_path())
+        self.instance("path.config", self.config_path())
+        self.instance("path.database", self.database_path())
+        self.instance("path.public", self.public_path())
+        self.instance("path.resource", self.resource_path())
+        self.instance("path.storage", self.storage_path())
+
+        return self
+
+    def base_path(self, path: str = "") -> Path:
+        """
+        Get the base path of the application installation.
+
+        Args:
+            path: Optional path to append to the base path.
+
+        Returns:
+            The full base path or base path with appended subdirectory.
+        """
+        return self.join_paths(self._base_path, path)
+
+    def config_path(self, path: str = "") -> Path:
+        """
+        Get the path to the application configuration files.
+
+        Args:
+            path: Optional path to append to the config directory.
+
+        Returns:
+            The full path to the config directory or subdirectory.
+        """
+        config_path = getattr(self, "_config_path", None)
+        base = config_path if config_path else self.base_path("config")
+        return self.join_paths(base, path)
+
+    def database_path(self, path: str = "") -> Path:
+        """
+        Get the path to the database directory.
+
+        Args:
+            path: Optional path to append to the database directory.
+
+        Returns:
+            The full path to the database directory or subdirectory.
+        """
+        database_path = getattr(self, "_database_path", None)
+        base = database_path if database_path else self.base_path("database")
+        return self.join_paths(base, path)
+
+    def public_path(self, path: str = "") -> Path:
+        """
+        Get the path to the public directory.
+
+        Args:
+            path: Optional path to append to the public directory.
+
+        Returns:
+            The full path to the public directory or subdirectory.
+        """
+        public_path = getattr(self, "_public_path", None)
+        base = public_path if public_path else self.base_path("public")
+        return self.join_paths(base, path)
+
+    def resource_path(self, path: str = "") -> Path:
+        """
+        Get the path to the resources directory.
+
+        Args:
+            path: Optional path to append to the resources directory.
+
+        Returns:
+            The full path to the resources directory or subdirectory.
+        """
+        resource_path = getattr(self, "_resource_path", None)
+        base = resource_path if resource_path else self.base_path("resources")
+        return self.join_paths(base, path)
+
+    def storage_path(self, path: str = "") -> Path:
+        """
+        Get the path to the storage directory.
+
+        Args:
+            path: Optional path to append to the storage directory.
+
+        Returns:
+            The full path to the storage directory or subdirectory.
+        """
+        storage_path = getattr(self, "_storage_path", None)
+        base = storage_path if storage_path else self.base_path("storage")
+        return self.join_paths(base, path)
+
+    def environment_path(self) -> str:
+        """
+        Get the path to the environment file directory.
+
+        Returns:
+            The full path to the environment file directory.
+        """
+        environment_path = getattr(self, "_environment_path", None)
+        return environment_path if environment_path else str(self.base_path)
+
+    def environment_file(self) -> str:
+        """
+        Get the environment file the application is using.
+
+        Returns:
+            The environment file name.
+        """
+        environment_file = getattr(self, "_environment_file", None)
+        return environment_file if environment_file else ".env"
+
+    def environment_file_path(self) -> str:
+        """
+        Get the fully qualified path to the environment file.
+
+        Returns:
+            The full path to the environment file.
+        """
+        return self.join_paths(self.environment_path(), self.environment_file())
