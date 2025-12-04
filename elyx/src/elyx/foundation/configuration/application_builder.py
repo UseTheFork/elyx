@@ -42,15 +42,12 @@ class ApplicationBuilder:
         # Auto-discover commands from app/Console/Commands if no commands provided
         if not commands:
             console_commands_path = Path(self._application.path("console/commands"))
-            print(console_commands_path)
-            print(console_commands_path)
-            print(console_commands_path)
             if console_commands_path.exists():
                 commands = [console_commands_path]
 
         # Register callback to run after console kernel is resolved
         async def register_commands_callback(kernel, app):
-            def register_on_boot():
+            def register_on_boot(app):
                 # Check if commands are paths or classes
                 for command in commands:
                     if isinstance(command, Path):

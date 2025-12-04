@@ -91,14 +91,21 @@ class ConsoleKernel(KernelContract):
 
     def _load_commands_from_file(self, file: Path) -> None:
         """Load command classes from a Python file."""
+        from elyx.console.command import Command
+
         spec = importlib.util.spec_from_file_location(file.stem, file)
         if spec and spec.loader:
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
-            # Find command classes in module
+            # Find command classes in module - check for Command subclass
             for name, obj in inspect.getmembers(module):
-                if inspect.isclass(obj) and hasattr(obj, "handle") and not name.startswith("_"):
+                if (
+                    inspect.isclass(obj)
+                    and issubclass(obj, Command)
+                    and obj is not Command  # Don't register the base Command class
+                    and not name.startswith("_")
+                ):
                     self.commands.append(obj)
 
     def _load_command_routes(self, file: Path) -> None:

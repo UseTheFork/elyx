@@ -29,7 +29,7 @@ class Application(Container):
         """
         from elyx.foundation.configuration.application_builder import ApplicationBuilder
 
-        return ApplicationBuilder(Application(base_path=base_path)).with_kernels()
+        return ApplicationBuilder(Application(base_path=base_path)).with_kernels().with_commands()
 
     def __init__(self, base_path: Optional[Path] = None):
         """Initialize the application container."""
@@ -253,7 +253,7 @@ class Application(Container):
         base = storage_path if storage_path else self.base_path("storage")
         return self.join_paths(base, path)
 
-    def environment_path(self) -> str:
+    def environment_path(self) -> Path:
         """
         Get the path to the environment file directory.
 
@@ -261,9 +261,9 @@ class Application(Container):
             The full path to the environment file directory.
         """
         environment_path = getattr(self, "_environment_path", None)
-        return environment_path if environment_path else str(self.base_path)
+        return Path(environment_path) if environment_path else self.base_path()
 
-    def environment_file(self) -> str:
+    def environment_file(self) -> Path:
         """
         Get the environment file the application is using.
 
@@ -271,9 +271,9 @@ class Application(Container):
             The environment file name.
         """
         environment_file = getattr(self, "_environment_file", None)
-        return environment_file if environment_file else ".env"
+        return Path(environment_file) if environment_file else Path(".env")
 
-    def environment_file_path(self) -> str:
+    def environment_file_path(self) -> Path:
         """
         Get the fully qualified path to the environment file.
 

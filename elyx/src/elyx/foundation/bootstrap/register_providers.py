@@ -53,7 +53,6 @@ class RegisterProviders:
         # Optionally discover providers from bootstrap/providers.py
         if app.base_path:
             providers_file = app.path("bootstrap/providers.py")
-            # AI: how shoudl we now fix this ai?
             if providers_file.exists():
                 discovered = self._load_providers_from_file(providers_file)
                 providers.extend(discovered)

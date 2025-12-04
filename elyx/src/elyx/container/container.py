@@ -1,7 +1,9 @@
+import inspect
 from typing import Any, Callable, TypeVar
 
 from dependency_injector import containers, providers
 from elyx.contracts.container.container_contract import ContainerContract
+from elyx.exceptions import EntryNotFoundException
 
 T = TypeVar("T")
 
@@ -17,6 +19,10 @@ class Container(containers.DynamicContainer, ContainerContract):
         self._bindings = containers.DynamicContainer()
         self._instances = {}
         self._aliases = {}
+        self._global_before_resolving_callbacks = []
+        self._before_resolving_callbacks = {}
+        self._global_after_resolving_callbacks = []
+        self._after_resolving_callbacks = {}
 
     def bound(self, abstract) -> bool:
         """
@@ -94,23 +100,48 @@ class Container(containers.DynamicContainer, ContainerContract):
         Returns:
             Resolved instance.
         """
+        return await self.resolve(abstract, **kwargs)
+
+    async def resolve(self, abstract, raise_events=True, **kwargs) -> T | Any:
+        """
+        Resolve the given type from the container.
+
+        Args:
+            abstract: Abstract type identifier or class.
+            **kwargs: Parameters to pass to the constructor.
+
+        Returns:
+            Resolved instance.
+        """
+
+        original_abstract = abstract
+
         abstract_str = self._normalize_abstract(abstract)
+        abstract = self.get_alias(abstract_str)
+
+        if raise_events:
+            await self._fire_before_resolving_callbacks(abstract_str, **kwargs)
 
         if not hasattr(self._bindings, abstract_str):
             # Auto-wire if it's a class
-            if isinstance(abstract, type):
-                provider = providers.Factory(abstract)
+            if isinstance(original_abstract, type):
+                provider = providers.Factory(original_abstract)
                 setattr(self._bindings, abstract_str, provider)
             else:
-                from elyx.exceptions import EntryNotFoundException
-
                 raise EntryNotFoundException(abstract_str)
 
         provider = getattr(self._bindings, abstract_str)
 
         if kwargs:
-            return provider(**kwargs)
-        return provider()
+            instance = provider(**kwargs)
+        else:
+            instance = provider()
+
+        # Fire after resolving callbacks
+        if raise_events:
+            await self._fire_after_resolving_callbacks(abstract_str, instance)
+
+        return instance
 
     def bind(
         self,
@@ -292,7 +323,7 @@ class Container(containers.DynamicContainer, ContainerContract):
             return f"{abstract.__module__}.{abstract.__qualname__}"
         return abstract
 
-    def after_resolving(self, abstract: str | type[T] | Callable, callback: Callable | None = None) -> None:
+    def after_resolving(self, abstract, callback: Callable | None = None) -> None:
         """
         Register a new after resolving callback for all types.
 
@@ -303,9 +334,69 @@ class Container(containers.DynamicContainer, ContainerContract):
         Returns:
             None
         """
-        # Note: dependency-injector doesn't have built-in callback support
-        # This is a placeholder to maintain API compatibility
-        pass
+        # If abstract is a callable and no callback provided, it's a global callback
+        if callable(abstract) and callback is None:
+            self._global_after_resolving_callbacks.append(abstract)
+        else:
+            # Normalize abstract to string and resolve aliases
+            if isinstance(abstract, str) or isinstance(abstract, type):
+                abstract_str = self._normalize_abstract(abstract)
+                abstract_str = self.get_alias(abstract_str)
+            else:
+                abstract_str = self._normalize_abstract(abstract)
+
+            # Store callback for specific abstract type
+            if abstract_str not in self._after_resolving_callbacks:
+                self._after_resolving_callbacks[abstract_str] = []
+            self._after_resolving_callbacks[abstract_str].append(callback)
+
+    async def _fire_callback_array(self, callbacks: list, *args) -> None:
+        """
+        Fire an array of callbacks with the given arguments.
+
+        Args:
+            callbacks: List of callbacks to execute.
+            *args: Arguments to pass to each callback.
+
+        Returns:
+            None
+        """
+        for callback in callbacks:
+            result = callback(*args)
+            if inspect.iscoroutine(result):
+                await result
+
+    async def _fire_after_resolving_callbacks(self, abstract: str, instance: Any) -> None:
+        """
+        Fire all after resolving callbacks for the given abstract type.
+
+        Args:
+            abstract: Abstract type identifier.
+            instance: The resolved instance.
+
+        Returns:
+            None
+        """
+        await self._fire_callback_array(self._global_after_resolving_callbacks, instance, self)
+
+        if abstract in self._after_resolving_callbacks:
+            await self._fire_callback_array(self._after_resolving_callbacks[abstract], instance, self)
+
+    async def _fire_before_resolving_callbacks(self, abstract: str, **kwargs) -> None:
+        """
+        Fire all of the before resolving callbacks.
+
+        Args:
+            abstract: Abstract type identifier.
+            **kwargs: Parameters being passed to the constructor.
+
+        Returns:
+            None
+        """
+        await self._fire_callback_array(self._global_before_resolving_callbacks, abstract, kwargs, self)
+
+        if abstract in self._before_resolving_callbacks:
+            await self._fire_callback_array(self._before_resolving_callbacks[abstract], abstract, kwargs, self)
 
     async def factory(self, abstract):
         """
