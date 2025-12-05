@@ -66,11 +66,6 @@ match = re.match(r"^([^\s{]+)", self.signature)
 if "|" in arg_def:
 ```
 
-**Use for TODO/FIXME:**
-```python
-print("TODO: ADD EXCEPTIONS CATCHING HERE")
-```
-
 ## Things to Avoid
 - ❌ Redundant docstrings: `def get_name() -> str: """Get name."""` (type hint is enough)
 - ❌ Commenting obvious code: `# Set the name` before `self.name = name`

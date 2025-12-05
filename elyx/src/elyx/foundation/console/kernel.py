@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, List
 from elyx.console.application import Application as ConsoleApplication
 from elyx.contracts.console.kernel_contract import KernelContract
 from elyx.foundation.bootstrap.boot_providers import BootProviders
+from elyx.foundation.bootstrap.handle_exceptions import HandleExceptions
 from elyx.foundation.bootstrap.register_providers import RegisterProviders
 
 if TYPE_CHECKING:
@@ -28,6 +29,7 @@ class ConsoleKernel(KernelContract):
 
     def bootstrappers(self):
         return [
+            HandleExceptions,
             RegisterProviders,
             BootProviders,
         ]
@@ -127,17 +129,9 @@ class ConsoleKernel(KernelContract):
         Returns:
             Exit status code.
         """
-        try:
-            await self.bootstrap()
+        await self.bootstrap()
 
-            return await self.get_elyx().run(input)
-        except Exception:
-            print("TODO: ADD EXCEPTIONS CATCHING HERE")
-            from rich.console import Console
-
-            console = Console()
-            console.print_exception(show_locals=True)
-            return 1
+        return await self.get_elyx().run(input)
 
     def get_elyx(self) -> ConsoleApplication:
         """
