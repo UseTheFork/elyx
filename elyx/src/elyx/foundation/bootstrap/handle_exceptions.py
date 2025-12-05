@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING
 
+from elyx.foundation.bootstrap.base import Bootstrapper
 from rich.console import Console
 from rich.traceback import Traceback
 
@@ -10,13 +11,10 @@ if TYPE_CHECKING:
     from elyx.foundation.application import Application
 
 
-class HandleExceptions:
+class HandleExceptions(Bootstrapper):
     """Bootstrap exception handling for the application."""
 
     app: Application | None = None
-
-    def __init__(self, **kwargs):
-        pass
 
     def bootstrap(self, app: Application) -> None:
         """

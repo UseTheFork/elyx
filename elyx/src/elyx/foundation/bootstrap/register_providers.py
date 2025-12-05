@@ -5,11 +5,13 @@ import inspect
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from elyx.foundation.bootstrap.base import Bootstrapper
+
 if TYPE_CHECKING:
     from elyx.foundation.application import Application
 
 
-class RegisterProviders:
+class RegisterProviders(Bootstrapper):
     def __init__(self, **kwargs):
         pass
 

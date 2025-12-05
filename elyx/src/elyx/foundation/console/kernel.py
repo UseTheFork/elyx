@@ -9,6 +9,7 @@ from elyx.console.application import Application as ConsoleApplication
 from elyx.contracts.console.kernel_contract import KernelContract
 from elyx.foundation.bootstrap.boot_providers import BootProviders
 from elyx.foundation.bootstrap.handle_exceptions import HandleExceptions
+from elyx.foundation.bootstrap.load_environment_variables import LoadEnvironmentVariables
 from elyx.foundation.bootstrap.register_providers import RegisterProviders
 
 if TYPE_CHECKING:
@@ -29,6 +30,7 @@ class ConsoleKernel(KernelContract):
 
     def bootstrappers(self):
         return [
+            LoadEnvironmentVariables,
             HandleExceptions,
             RegisterProviders,
             BootProviders,

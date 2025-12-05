@@ -1,4 +1,6 @@
 import inspect
+import os
+import sys
 from pathlib import Path
 from typing import Optional, TypeVar
 
@@ -15,6 +17,7 @@ class Application(Container):
 
     _environment_path = None
     _environment_file = ".env"
+    _is_running_in_console: bool | None = None
 
     @staticmethod
     def configure(base_path: Optional[Path] = None):
@@ -281,3 +284,21 @@ class Application(Container):
             The full path to the environment file.
         """
         return self.join_paths(self.environment_path(), self.environment_file())
+
+    def running_in_console(self) -> bool:
+        """
+        Determine if the application is running in the console.
+
+        Returns:
+            True if running in console, False otherwise.
+        """
+        if self._is_running_in_console is None:
+            # Check environment variable first, then check if running in CLI
+            env_value = os.getenv("APP_RUNNING_IN_CONSOLE")
+            if env_value is not None:
+                self._is_running_in_console = env_value.lower() in ("true", "1", "yes")
+            else:
+                # Check if running in CLI mode (similar to PHP's CLI SAPI check)
+                self._is_running_in_console = not hasattr(sys, "ps1") and sys.stdin.isatty()
+
+        return bool(self._is_running_in_console)
