@@ -3,8 +3,8 @@ import re
 from rich.console import Console
 
 from elyx.console.argument_parser import ArgumentParser
-from elyx.contracts.console.command_contract import CommandContract
-from elyx.contracts.container.container_contract import ContainerContract
+from elyx.contracts.console.command import Command as CommandContract
+from elyx.contracts.container.container import Container
 
 
 class Command(CommandContract):
@@ -168,7 +168,7 @@ class Command(CommandContract):
         """
         return self.arguments()
 
-    def get_elyx(self) -> ContainerContract:
+    def get_elyx(self) -> Container:
         """
         Get the Elyx console application instance.
 
@@ -177,7 +177,7 @@ class Command(CommandContract):
         """
         return self.elyx
 
-    def set_elyx(self, elyx: ContainerContract) -> None:
+    def set_elyx(self, elyx: Container) -> None:
         """
         Set the Elyx application instance.
 

@@ -1,12 +1,12 @@
 from abc import abstractmethod
 from typing import Any, TypeVar
 
-from elyx.contracts.container.container_interface_contract import ContainerInterfaceContract
+from elyx.contracts.container.container_interface import ContainerInterface
 
 T = TypeVar("T")
 
 
-class ContainerContract(ContainerInterfaceContract):
+class Container(ContainerInterface):
     @abstractmethod
     def bound(self, abstract) -> bool:
         """
@@ -74,7 +74,7 @@ class ContainerContract(ContainerInterfaceContract):
         pass
 
     @abstractmethod
-    async def make(self, abstract, parameters: dict[str, Any] | None = None) -> T | Any:
+    async def make(self, abstract, **kwargs) -> T | Any:
         """
         Resolve the given type from the container.
 

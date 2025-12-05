@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
-class ApplicationContract(ABC):
+class Application(ABC):
     @abstractmethod
     def call(self, command: str, parameters: dict[str, Any] | None = None, output_buffer: Any | None = None) -> int:
         """

@@ -1,5 +1,5 @@
 from abc import ABC
 
 
-class CommandContract(ABC):
+class Command(ABC):
     pass

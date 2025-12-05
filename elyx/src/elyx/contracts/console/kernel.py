@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
-class KernelContract(ABC):
+class Kernel(ABC):
     @abstractmethod
     async def bootstrap(self) -> None:
         """

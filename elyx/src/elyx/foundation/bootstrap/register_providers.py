@@ -3,18 +3,12 @@ from __future__ import annotations
 import importlib.util
 import inspect
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-from elyx.foundation.bootstrap.base import Bootstrapper
-
-if TYPE_CHECKING:
-    from elyx.foundation.application import Application
+from elyx.contracts.foundation.application import Application
+from elyx.contracts.foundation.bootstrapper import Bootstrapper
 
 
 class RegisterProviders(Bootstrapper):
-    def __init__(self, **kwargs):
-        pass
-
     async def bootstrap(self, app: Application) -> None:
         """
         Register all service providers with the application.

@@ -2,8 +2,9 @@ from typing import Any
 
 from elyx.console.console import Console
 from elyx.console.container_command_loader import ContainerCommandLoader
-from elyx.contracts.console.application_contract import ApplicationContract
-from elyx.contracts.container.container_contract import ContainerContract
+from elyx.contracts.console.application import Application as ApplicationContract
+from elyx.contracts.console.command import Command
+from elyx.contracts.container.container import Container
 
 
 class Application(ApplicationContract):
@@ -11,7 +12,7 @@ class Application(ApplicationContract):
 
     bootstrappers: list = []
 
-    def __init__(self, elyx: ContainerContract):
+    def __init__(self, elyx: Container):
         """
         Initialize the console application.
 
@@ -129,7 +130,6 @@ class Application(ApplicationContract):
         Returns:
             Self for method chaining.
         """
-        from elyx.console.command import Command
 
         if isinstance(command, type) and issubclass(command, Command):
             # Instantiate to get the name from signature
@@ -143,7 +143,7 @@ class Application(ApplicationContract):
             command_name = command.name
             self.register(command_name, command.__class__)
 
-    def resolve_commands(self, commands: list) -> "Application":
+    def resolve_commands(self, commands: list) -> ApplicationContract:
         """
         Resolve and register multiple commands with the application.
 

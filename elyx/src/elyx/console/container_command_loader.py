@@ -1,10 +1,10 @@
 from elyx.console.command import Command
-from elyx.contracts.container.container_contract import ContainerContract
-from elyx.contracts.container.container_interface_contract import ContainerInterfaceContract
+from elyx.contracts.container.container import Container
+from elyx.contracts.container.container_interface import ContainerInterface
 
 
-class ContainerCommandLoader(ContainerInterfaceContract):
-    def __init__(self, container: ContainerContract, command_map: list):
+class ContainerCommandLoader(ContainerInterface):
+    def __init__(self, container: Container, command_map: list):
         """Initialize the container command loader."""
         self.container = container
         self.command_map = command_map

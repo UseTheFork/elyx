@@ -5,8 +5,8 @@ from elyx.contracts.foundation.application import Application
 from elyx.contracts.foundation.bootstrapper import Bootstrapper
 
 
-class LoadEnvironmentVariables(Bootstrapper):
-    """Bootstrap class for loading environment variables from .env file."""
+class LoadConfiguration(Bootstrapper):
+    """"""
 
     app: Application | None = None
 

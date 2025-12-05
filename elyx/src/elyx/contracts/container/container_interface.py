@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class ContainerInterfaceContract(ABC):
+class ContainerInterface(ABC):
     @abstractmethod
     def get(self, id: str):
         """

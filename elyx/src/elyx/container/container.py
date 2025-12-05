@@ -2,13 +2,13 @@ import inspect
 from typing import Any, Callable, TypeVar
 
 from dependency_injector import containers, providers
-from elyx.contracts.container.container_contract import ContainerContract
+from elyx.contracts.container.container import Container as ContainerContract
 from elyx.exceptions import EntryNotFoundException
 
 T = TypeVar("T")
 
 
-class Container(containers.DynamicContainer, ContainerContract):
+class Container(ContainerContract):
     """
     Dependency injection container wrapping dependency-injector.
     """
