@@ -67,6 +67,20 @@ class Container(ContainerInterface):
         pass
 
     @abstractmethod
+    def instance(self, abstract, instance: T) -> T:
+        """
+        Register an existing instance as shared in the container.
+
+        Args:
+            abstract: Abstract type identifier.
+            instance: The instance to register.
+
+        Returns:
+            The registered instance.
+        """
+        pass
+
+    @abstractmethod
     def flush(self) -> None:
         """
         Flush the container of all bindings and resolved instances.

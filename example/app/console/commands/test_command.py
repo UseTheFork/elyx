@@ -10,8 +10,13 @@ class TestCommand(Command):
 
     async def handle(self):
         """Execute the test command."""
-        print("Test command executed successfully!")
-        print("Setup is working as expected.")
+
+        # config = await self.elyx.app.make("config")
+        # app_name = config.string("app.name")
+
+        # config = self.get_elyx()
+        config = await self.get_elyx().make("config")
+        print(config.all())
 
         print(123)
         print(123)

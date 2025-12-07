@@ -3,6 +3,7 @@ import re
 from rich.console import Console
 
 from elyx.console.argument_parser import ArgumentParser
+from elyx.contracts.console.application import Application
 from elyx.contracts.console.command import Command as CommandContract
 from elyx.contracts.container.container import Container
 
@@ -23,6 +24,17 @@ class Command(CommandContract):
 
         self._parsed_args = None
         self._parse_signature()
+
+    @classmethod
+    def get_command_name(cls) -> str:
+        """Extract command name from signature without instantiation."""
+        if not hasattr(cls, "signature") or not cls.signature:
+            raise ValueError(f"Command {cls.__name__} must define a signature")
+
+        match = re.match(r"^([^\s{]+)", cls.signature)
+        if match:
+            return match.group(1)
+        return ""
 
     def _parse_signature(self):
         """Parse signature into name and build argparse."""
@@ -169,19 +181,17 @@ class Command(CommandContract):
         return self.arguments()
 
     def get_elyx(self) -> Container:
-        """
-        Get the Elyx console application instance.
-
-        Returns:
-            ConsoleApplication instance.
-        """
+        """Get the Elyx console application instance."""
         return self.elyx
 
     def set_elyx(self, elyx: Container) -> None:
-        """
-        Set the Elyx application instance.
-
-        Returns:
-            ConsoleApplication instance.
-        """
+        """Set the Elyx application instance."""
         self.elyx = elyx
+
+    def get_application(self) -> Application:
+        """Get the application container instance."""
+        return self.application
+
+    def set_application(self, application: Application) -> None:
+        """Set the application container instance."""
+        self.application = application

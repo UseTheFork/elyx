@@ -60,29 +60,33 @@ class Application(ApplicationContract):
             self._output = f"Command '{command}' not found."
             return 1
 
-        try:
-            # Resolve the command from container
-            command_class = self._commands[command]
-            command_instance = await self.elyx.make(command_class)
+        # try:
+        # Resolve the command from container
+        command_class = self._commands[command]
+        command_instance = await self.elyx.make(command_class)
 
-            command_instance.console = self.console
+        command_instance.set_elyx(self.get_elyx())
+        command_instance.set_application(self)
 
-            # Parse arguments if parameters provided as list
-            if isinstance(parameters, list):
-                command_instance.parse_args(parameters)
-                parameters = {}
+        # command_instance.set
+        command_instance.console = self.console
 
-            # Execute the command
-            result = await command_instance.handle(**parameters)
+        # Parse arguments if parameters provided as list
+        if isinstance(parameters, list):
+            command_instance.parse_args(parameters)
+            parameters = {}
 
-            # Capture output if buffer provided
-            if output_buffer is not None:
-                self._output = str(result) if result is not None else ""
+        # Execute the command
+        result = await command_instance.handle(**parameters)
 
-            return 0
-        except Exception as e:
-            self._output = f"Error executing command: {e!s}"
-            return 1
+        # Capture output if buffer provided
+        if output_buffer is not None:
+            self._output = str(result) if result is not None else ""
+
+        return 0
+        # except Exception as e:
+        #     self._output = f"Error executing command: {e!s}"
+        #     return 1
 
     def output(self) -> str:
         """
@@ -93,7 +97,17 @@ class Application(ApplicationContract):
         """
         return self._output
 
-    def register(self, name: str, command: type) -> None:
+    def add(self, name: str, command: type) -> None:
+        """
+        Register a command with the application.
+
+        Args:
+            name: The command name.
+            command: The command class.
+        """
+        self.add_command(name, command)
+
+    def add_command(self, name: str, command: type) -> None:
         """
         Register a command with the application.
 
@@ -131,17 +145,17 @@ class Application(ApplicationContract):
             Self for method chaining.
         """
 
+        # Instantiate to get the name from signature
         if isinstance(command, type) and issubclass(command, Command):
             # Instantiate to get the name from signature
-            command_instance = command()
-            command_instance.set_elyx(self)
-
-            command_name = command_instance.name
-            self.register(command_name, command)
+            command_name = command.get_command_name()
+            self.add(command_name, command)
         elif isinstance(command, Command):
             # Already an instance
             command_name = command.name
-            self.register(command_name, command.__class__)
+            self.add(command_name, command.__class__)
+
+        self.add(command_name, command)
 
     def resolve_commands(self, commands: list) -> ApplicationContract:
         """
@@ -180,3 +194,12 @@ class Application(ApplicationContract):
         if self.command_loader and self.command_loader.has(name):
             return await self.command_loader.get(name)
         return None
+
+    def get_elyx(self) -> Container:
+        """
+        Get the Elyx application instance.
+
+        Returns:
+            Elyx Application instance.
+        """
+        return self.elyx

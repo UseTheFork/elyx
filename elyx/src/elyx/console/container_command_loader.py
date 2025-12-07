@@ -1,4 +1,4 @@
-from elyx.console.command import Command
+from elyx.contracts.console.command import Command
 from elyx.contracts.container.container import Container
 from elyx.contracts.container.container_interface import ContainerInterface
 
