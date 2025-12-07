@@ -6,6 +6,7 @@ from pathlib import Path
 
 from elyx.contracts.foundation.application import Application
 from elyx.contracts.foundation.bootstrapper import Bootstrapper
+from elyx.support.service_provider import ServiceProvider
 
 
 class RegisterProviders(Bootstrapper):
@@ -21,6 +22,13 @@ class RegisterProviders(Bootstrapper):
 
         # Register each provider
         for provider_class in providers:
+            # Check that provider extends ServiceProvider
+            if not (inspect.isclass(provider_class) and issubclass(provider_class, ServiceProvider)):
+                raise TypeError(
+                    f"Provider {provider_class.__name__ if inspect.isclass(provider_class) else provider_class} "
+                    f"must extend ServiceProvider"
+                )
+
             # Instantiate the provider
             provider = await app.make(provider_class, app=app)
 

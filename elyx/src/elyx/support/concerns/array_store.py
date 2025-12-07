@@ -1,6 +1,7 @@
 from typing import Any
 
 from elyx.contracts.support.array_store_contract import ArrayStoreContract
+from elyx.support.arr import Arr
 
 
 class ArrayStore(ArrayStoreContract):
@@ -20,8 +21,8 @@ class ArrayStore(ArrayStoreContract):
         return self._data
 
     def get(self, key: str, default: Any = None) -> Any:
-        """Retrieve a single item."""
-        return self._data.get(key, default)
+        """Retrieve a single item, supporting dot notation for nested access."""
+        return Arr.get(self._data, key, default)
 
     def set(self, data: dict[str, Any]) -> "ArrayStore":
         """Overwrite the entire repository."""
