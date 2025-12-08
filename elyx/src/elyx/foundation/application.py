@@ -33,7 +33,7 @@ class Application(Container):
         """
         from elyx.foundation.configuration.application_builder import ApplicationBuilder
 
-        return ApplicationBuilder(Application(base_path=base_path)).with_kernels().with_commands()
+        return ApplicationBuilder(Application(base_path=base_path)).with_kernels().with_commands().with_providers()
 
     def __init__(self, base_path: Optional[Path] = None):
         """Initialize the application container."""

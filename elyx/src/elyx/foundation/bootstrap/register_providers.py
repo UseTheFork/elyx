@@ -10,6 +10,30 @@ from elyx.support.service_provider import ServiceProvider
 
 
 class RegisterProviders(Bootstrapper):
+    _bootstrap_provider_path: Path | None = None
+    _merge: list[type] = []
+
+    @staticmethod
+    def merge(providers: list[type], bootstrap_provider_path: Path | None = None) -> None:
+        """
+        Merge the given providers into the provider configuration before registration.
+
+        Args:
+            providers: List of provider classes to merge.
+            bootstrap_provider_path: Optional path to bootstrap providers file.
+        """
+        RegisterProviders._bootstrap_provider_path = bootstrap_provider_path
+        # Merge providers, removing duplicates and None values
+        merged = RegisterProviders._merge + providers
+        # Remove duplicates while preserving order
+        seen = set()
+        unique = []
+        for provider in merged:
+            if provider is not None and provider not in seen:
+                seen.add(provider)
+                unique.append(provider)
+        RegisterProviders._merge = unique
+
     async def bootstrap(self, app: Application) -> None:
         """
         Register all service providers with the application.
@@ -85,3 +109,5 @@ class RegisterProviders(Bootstrapper):
             return module.providers
 
         return []
+
+

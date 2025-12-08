@@ -4,6 +4,7 @@ from typing import Optional
 from dependency_injector import providers
 
 from elyx.foundation.application import Application
+from elyx.foundation.bootstrap.register_providers import RegisterProviders
 from elyx.foundation.console.kernel import ConsoleKernel
 
 
@@ -25,6 +26,34 @@ class ApplicationBuilder:
         # Use self._application directly, not getattr
         provider = providers.Singleton(ConsoleKernel, app=self._application)
         setattr(self._application._bindings, abstract_str, provider)
+
+        return self
+
+    def with_providers(
+        self, providers: list[type] | None = None, with_bootstrap_providers: bool = True
+    ) -> "ApplicationBuilder":
+        """
+        Register service providers with the application.
+
+        Args:
+            providers: List of provider classes to register.
+            with_bootstrap_providers: Whether to include bootstrap providers.
+
+        Returns:
+            ApplicationBuilder instance for chaining.
+        """
+
+        if providers is None:
+            providers = []
+
+        bootstrap_provider_path = None
+        if with_bootstrap_providers:
+            # Get bootstrap providers path if it exists
+            bootstrap_path = self._application.path("bootstrap/providers.py")
+            if bootstrap_path.exists():
+                bootstrap_provider_path = bootstrap_path
+
+        RegisterProviders.merge(providers, bootstrap_provider_path)
 
         return self
 
