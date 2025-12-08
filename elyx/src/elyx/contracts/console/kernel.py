@@ -4,7 +4,7 @@ from typing import Any
 
 class Kernel(ABC):
     @abstractmethod
-    async def bootstrap(self) -> None:
+    def bootstrap(self) -> None:
         """
         Bootstrap the application for console commands.
         """

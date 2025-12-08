@@ -7,6 +7,7 @@ from typing import Any, List
 
 from elyx.console.application import Application as ConsoleApplication
 from elyx.contracts.console.kernel import Kernel as KernelContract
+from elyx.contracts.events.dispatcher import Dispatcher
 from elyx.contracts.foundation.application import Application
 from elyx.foundation.bootstrap.boot_providers import BootProviders
 from elyx.foundation.bootstrap.handle_exceptions import HandleExceptions
@@ -36,10 +37,11 @@ class ConsoleKernel(KernelContract):
             BootProviders,
         ]
 
-    def __init__(self, app: Application):
+    def __init__(self, app: Application, events: Dispatcher):
         self.app = app
+        self.events = events
 
-    async def bootstrap(self) -> None:
+    def bootstrap(self) -> None:
         """
         Bootstrap the application for artisan commands.
 
@@ -47,7 +49,7 @@ class ConsoleKernel(KernelContract):
             None
         """
         if not self.app.has_been_bootstrapped():
-            await self.app.bootstrap_with(self.bootstrappers())
+            self.app.bootstrap_with(self.bootstrappers())
 
         if not self.commands_loaded:
             # Auto-discover commands from app/commands/ directory
@@ -131,7 +133,7 @@ class ConsoleKernel(KernelContract):
         Returns:
             Exit status code.
         """
-        await self.bootstrap()
+        self.bootstrap()
 
         return await self.get_elyx().run(input)
 
@@ -152,7 +154,7 @@ class ConsoleKernel(KernelContract):
         return self.elyx
 
     async def all(self):
-        await self.bootstrap()
+        self.bootstrap()
 
         return self.get_elyx().all()
 
@@ -163,4 +165,6 @@ class ConsoleKernel(KernelContract):
         pass
 
     def terminate(self):
-        pass
+        self.app.terminate()
+        # TODO: this.
+        # self.events.dispatch(Terminating())

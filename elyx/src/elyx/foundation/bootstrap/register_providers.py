@@ -34,7 +34,7 @@ class RegisterProviders(Bootstrapper):
                 unique.append(provider)
         RegisterProviders._merge = unique
 
-    async def bootstrap(self, app: Application) -> None:
+    def bootstrap(self, app: Application) -> None:
         """
         Register all service providers with the application.
 
@@ -54,13 +54,11 @@ class RegisterProviders(Bootstrapper):
                 )
 
             # Instantiate the provider
-            provider = await app.make(provider_class, app=app)
+            provider = app.make(provider_class, app=app)
 
             # Call the register method if it exists
             if hasattr(provider, "register") and callable(provider.register):
-                result = provider.register()
-                if inspect.iscoroutine(result):
-                    await result
+                provider.register()
 
     def _get_providers(self, app: Application) -> list[type]:
         """
@@ -109,5 +107,3 @@ class RegisterProviders(Bootstrapper):
             return module.providers
 
         return []
-
-

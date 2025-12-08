@@ -1,12 +1,14 @@
-import inspect
 import os
 import sys
 from pathlib import Path
-from typing import Optional, TypeVar
+from typing import Callable, Optional, TypeVar
 
 from elyx.container.container import Container
 from elyx.contracts.support.service_provider import ServiceProvider
+from elyx.events.dispatcher import Dispatcher
+from elyx.events.event_service_provider import EventServiceProvider
 from elyx.foundation.console.kernel import ConsoleKernel
+from elyx.logging.log_service_provider import LogServiceProvider
 
 T = TypeVar("T")
 
@@ -15,6 +17,8 @@ class Application(Container):
     _has_been_bootstrapped: bool = False
     _booted: bool = False
     _booted_callbacks: list = []
+
+    _terminating_callbacks: list = []
 
     _environment_path = None
     _environment_file = ".env"
@@ -53,8 +57,6 @@ class Application(Container):
 
     def _register_base_service_providers(self):
         """Register all of the base service providers."""
-        from elyx.events.event_service_provider import EventServiceProvider
-        from elyx.logging.log_service_provider import LogServiceProvider
 
         self.register(EventServiceProvider)
         self.register(LogServiceProvider)
@@ -68,21 +70,20 @@ class Application(Container):
         pass
 
     async def handle_command(self, input: list[str]) -> None:
-        kernel = self.make(ConsoleKernel, app=self)
+        dispatcher = self.make(Dispatcher)
+        kernel = self.make(ConsoleKernel, app=self, events=dispatcher)
         status = await kernel.handle(input)
-        # kernel.terminate()
+        kernel.terminate()
 
     def has_been_bootstrapped(self) -> bool:
         return self._has_been_bootstrapped
 
-    async def bootstrap_with(self, bootstrappers: list) -> None:
+    def bootstrap_with(self, bootstrappers: list) -> None:
         self._has_been_bootstrapped = True
 
         for bootstrapper in bootstrappers:
             instance = self.make(bootstrapper)
-            result = instance.bootstrap(self)
-            if inspect.iscoroutine(result):
-                await result
+            instance.bootstrap(self)
 
     def booted(self, callback):
         """
@@ -378,3 +379,21 @@ class Application(Container):
         """
         if hasattr(provider, "boot") and callable(provider.boot):
             self.call(provider.boot)
+
+    def terminating(self, callback: Callable | str) -> "Application":
+        """
+        Register a terminating callback with the application.
+
+        Args:
+            callback: Callable or string reference to execute on termination.
+
+        Returns:
+            Self for method chaining.
+        """
+        self._terminating_callbacks.append(callback)
+        return self
+
+    def terminate(self) -> None:
+        """Terminate the application."""
+        for callback in self._terminating_callbacks:
+            self.call(callback)

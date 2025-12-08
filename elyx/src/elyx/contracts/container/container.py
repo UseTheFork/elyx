@@ -88,7 +88,7 @@ class Container(ContainerInterface):
         pass
 
     @abstractmethod
-    async def make(self, abstract, **kwargs) -> T | Any:
+    def make(self, abstract, **kwargs) -> T | Any:
         """
         Resolve the given type from the container.
 
