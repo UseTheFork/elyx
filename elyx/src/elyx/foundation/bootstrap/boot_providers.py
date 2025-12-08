@@ -5,5 +5,5 @@ from elyx.contracts.foundation.bootstrapper import Bootstrapper
 
 
 class BootProviders(Bootstrapper):
-    async def bootstrap(self, app: Application) -> None:
-        await app.boot()
+    def bootstrap(self, app: Application) -> None:
+        app.boot()

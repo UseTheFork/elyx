@@ -1,4 +1,3 @@
-import inspect
 from typing import Any, Callable, TypeVar
 
 from dependency_injector import containers, providers
@@ -89,7 +88,7 @@ class Container(ContainerContract):
 
         return abstract_str in self._resolved or abstract_str in self._instances
 
-    async def make(self, abstract, **kwargs) -> T | Any:
+    def make(self, abstract, **kwargs) -> T | Any:
         """
         Resolve the given type from the container.
 
@@ -100,9 +99,9 @@ class Container(ContainerContract):
         Returns:
             Resolved instance.
         """
-        return await self.resolve(abstract, **kwargs)
+        return self.resolve(abstract, **kwargs)
 
-    async def resolve(self, abstract, raise_events=True, **kwargs) -> T | Any:
+    def resolve(self, abstract, raise_events=True, **kwargs) -> T | Any:
         """
         Resolve the given type from the container.
 
@@ -120,7 +119,7 @@ class Container(ContainerContract):
         abstract = self.get_alias(abstract_str)
 
         if raise_events:
-            await self._fire_before_resolving_callbacks(abstract_str, **kwargs)
+            self._fire_before_resolving_callbacks(abstract_str, **kwargs)
 
         if not hasattr(self._bindings, abstract_str):
             # Auto-wire if it's a class
@@ -139,7 +138,7 @@ class Container(ContainerContract):
 
         # Fire after resolving callbacks
         if raise_events:
-            await self._fire_after_resolving_callbacks(abstract_str, instance)
+            self._fire_after_resolving_callbacks(abstract_str, instance)
 
         return instance
 
@@ -270,7 +269,7 @@ class Container(ContainerContract):
             if not attr_name.startswith("_"):
                 delattr(self._bindings, attr_name)
 
-    async def call(
+    def call(
         self,
         callback,
         parameters: dict[str, Any] | None = None,
@@ -287,7 +286,6 @@ class Container(ContainerContract):
         Returns:
             Result of the callback.
         """
-        import inspect
 
         if parameters is None:
             parameters = {}
@@ -300,13 +298,13 @@ class Container(ContainerContract):
                 class_name = callback
                 method_name = default_method or "__invoke__"
 
-            instance = await self.make(class_name)
+            instance = self.make(class_name)
             callback = getattr(instance, method_name)
 
         # Use dependency-injector's injection
         result = callback(**parameters)
-        if inspect.iscoroutine(result):
-            return await result
+        # if inspect.iscoroutine(result):
+        #     return result
         return result
 
     def _normalize_abstract(self, abstract: str | type[T]) -> str:
@@ -350,7 +348,7 @@ class Container(ContainerContract):
                 self._after_resolving_callbacks[abstract_str] = []
             self._after_resolving_callbacks[abstract_str].append(callback)
 
-    async def _fire_callback_array(self, callbacks: list, *args) -> None:
+    def _fire_callback_array(self, callbacks: list, *args) -> None:
         """
         Fire an array of callbacks with the given arguments.
 
@@ -362,11 +360,9 @@ class Container(ContainerContract):
             None
         """
         for callback in callbacks:
-            result = callback(*args)
-            if inspect.iscoroutine(result):
-                await result
+            callback(*args)
 
-    async def _fire_after_resolving_callbacks(self, abstract: str, instance: Any) -> None:
+    def _fire_after_resolving_callbacks(self, abstract: str, instance: Any) -> None:
         """
         Fire all after resolving callbacks for the given abstract type.
 
@@ -377,12 +373,12 @@ class Container(ContainerContract):
         Returns:
             None
         """
-        await self._fire_callback_array(self._global_after_resolving_callbacks, instance, self)
+        self._fire_callback_array(self._global_after_resolving_callbacks, instance, self)
 
         if abstract in self._after_resolving_callbacks:
-            await self._fire_callback_array(self._after_resolving_callbacks[abstract], instance, self)
+            self._fire_callback_array(self._after_resolving_callbacks[abstract], instance, self)
 
-    async def _fire_before_resolving_callbacks(self, abstract: str, **kwargs) -> None:
+    def _fire_before_resolving_callbacks(self, abstract: str, **kwargs) -> None:
         """
         Fire all of the before resolving callbacks.
 
@@ -393,10 +389,10 @@ class Container(ContainerContract):
         Returns:
             None
         """
-        await self._fire_callback_array(self._global_before_resolving_callbacks, abstract, kwargs, self)
+        self._fire_callback_array(self._global_before_resolving_callbacks, abstract, kwargs, self)
 
         if abstract in self._before_resolving_callbacks:
-            await self._fire_callback_array(self._before_resolving_callbacks[abstract], abstract, kwargs, self)
+            self._fire_callback_array(self._before_resolving_callbacks[abstract], abstract, kwargs, self)
 
     async def factory(self, abstract):
         """

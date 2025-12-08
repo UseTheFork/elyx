@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional, TypeVar
 
 from elyx.container.container import Container
+from elyx.contracts.support.service_provider import ServiceProvider
 from elyx.foundation.console.kernel import ConsoleKernel
 
 T = TypeVar("T")
@@ -40,6 +41,7 @@ class Application(Container):
         if base_path:
             self.set_base_path(base_path)
 
+        self._service_providers = {}
         self._register_base_bindings()
         self._register_base_service_providers()
 
@@ -51,8 +53,11 @@ class Application(Container):
 
     def _register_base_service_providers(self):
         """Register all of the base service providers."""
-        # TODO: This
-        pass
+        from elyx.events.event_service_provider import EventServiceProvider
+        from elyx.logging.log_service_provider import LogServiceProvider
+
+        self.register(EventServiceProvider)
+        self.register(LogServiceProvider)
 
     def _register_core_container_aliases(self):
         """Register the core class aliases in the container."""
@@ -63,7 +68,7 @@ class Application(Container):
         pass
 
     async def handle_command(self, input: list[str]) -> None:
-        kernel = await self.make(ConsoleKernel, app=self)
+        kernel = self.make(ConsoleKernel, app=self)
         status = await kernel.handle(input)
         # kernel.terminate()
 
@@ -74,12 +79,12 @@ class Application(Container):
         self._has_been_bootstrapped = True
 
         for bootstrapper in bootstrappers:
-            instance = await self.make(bootstrapper)
+            instance = self.make(bootstrapper)
             result = instance.bootstrap(self)
             if inspect.iscoroutine(result):
                 await result
 
-    async def booted(self, callback):
+    def booted(self, callback):
         """
         Register a new "booted" listener.
 
@@ -92,9 +97,7 @@ class Application(Container):
         self._booted_callbacks.append(callback)
 
         if self.is_booted():
-            result = callback(self)
-            if inspect.iscoroutine(result):
-                await result
+            callback(self)
 
     def is_booted(self) -> bool:
         """
@@ -105,7 +108,7 @@ class Application(Container):
         """
         return self._booted
 
-    async def boot(self) -> None:
+    def boot(self) -> None:
         """
         Boot the application's service providers.
 
@@ -117,9 +120,7 @@ class Application(Container):
 
         # Fire booted callbacks
         for callback in self._booted_callbacks:
-            result = callback(self)
-            if inspect.iscoroutine(result):
-                await result
+            callback(self)
 
         self._booted = True
 
@@ -302,3 +303,78 @@ class Application(Container):
                 self._is_running_in_console = not hasattr(sys, "ps1") and sys.stdin.isatty()
 
         return bool(self._is_running_in_console)
+
+    def register(self, provider, force: bool = False) -> ServiceProvider:
+        """
+        Register a service provider with the application.
+
+        """
+
+        registered = self.get_provider(provider)
+        if registered and not force:
+            return registered
+
+        if isinstance(provider, str):
+            provider = self.resolve_provider(provider)
+
+        if hasattr(provider, "bindings"):
+            for key, value in provider.bindings.items():
+                self.bind(key, value)
+
+        if hasattr(provider, "singletons"):
+            for key, value in provider.singletons.items():
+                if isinstance(key, int):
+                    key = value
+                self.singleton(key, value)
+
+        self._mark_as_registered(provider)
+
+        if self.is_booted():
+            self._boot_provider(provider)
+
+        return provider
+
+    def get_provider(self, provider):
+        """
+        Get the registered service provider instance if it exists.
+
+        Args:
+            provider: Service provider instance or class name.
+
+        Returns:
+            Service provider instance or None if not found.
+        """
+        name = self._normalize_abstract(provider)
+        return self._service_providers.get(name)
+
+    def resolve_provider(self, provider):
+        """
+        Resolve a service provider instance from the class name.
+
+        Args:
+            provider: Service provider class or class name.
+
+        Returns:
+            Service provider instance.
+        """
+        return provider(self)
+
+    def _mark_as_registered(self, provider: ServiceProvider) -> None:
+        """
+        Mark the given provider as registered.
+
+        Args:
+            provider: Service provider instance.
+        """
+        name = self._normalize_abstract(provider)
+        self._service_providers[name] = provider
+
+    def _boot_provider(self, provider: ServiceProvider) -> None:
+        """
+        Boot the given service provider.
+
+        Args:
+            provider: Service provider instance to boot.
+        """
+        if hasattr(provider, "boot") and callable(provider.boot):
+            self.call(provider.boot)

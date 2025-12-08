@@ -207,7 +207,7 @@ class Application(Container):
         pass
 
     @abstractmethod
-    async def boot(self) -> None:
+    def boot(self) -> None:
         """Boot the application's service providers."""
         pass
 
@@ -222,7 +222,7 @@ class Application(Container):
         pass
 
     @abstractmethod
-    async def booted(self, callback: Callable) -> None:
+    def booted(self, callback: Callable) -> None:
         """
         Register a new "booted" listener.
 
@@ -232,7 +232,7 @@ class Application(Container):
         pass
 
     @abstractmethod
-    async def bootstrap_with(self, bootstrappers: list) -> None:
+    def bootstrap_with(self, bootstrappers: list) -> None:
         """
         Run the given array of bootstrap classes.
 

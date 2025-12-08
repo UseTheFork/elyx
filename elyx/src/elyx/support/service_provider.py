@@ -1,10 +1,10 @@
-from abc import ABC, abstractmethod
 from typing import Callable
 
 from elyx.contracts.foundation.application import Application
+from elyx.contracts.support.service_provider import ServiceProvider as ServiceProviderContract
 
 
-class ServiceProvider(ABC):
+class ServiceProvider(ServiceProviderContract):
     """Base class for service providers."""
 
     booting_callbacks: list[Callable] = []
@@ -14,13 +14,6 @@ class ServiceProvider(ABC):
         self.app = app
         self.booting_callbacks = []
         self.booted_callbacks = []
-
-    @abstractmethod
-    def register(self) -> None:
-        """
-        Register services in the container.
-        """
-        pass
 
     def booting(self, callback: Callable) -> None:
         """
@@ -53,9 +46,3 @@ class ServiceProvider(ABC):
         while index < len(self.booted_callbacks):
             await self.app.call(self.booted_callbacks[index])
             index += 1
-
-    def boot(self) -> None:
-        """
-        Bootstrap services (called after all providers are registered).
-        """
-        pass

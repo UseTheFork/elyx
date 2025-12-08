@@ -15,7 +15,7 @@ class TestCommand(Command):
         # app_name = config.string("app.name")
 
         # config = self.get_elyx()
-        config = await self.get_elyx().make("config")
+        config = self.get_elyx().make("config")
         print(config.all())
 
         print(123)

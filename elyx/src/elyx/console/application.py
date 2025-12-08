@@ -63,7 +63,7 @@ class Application(ApplicationContract):
         # try:
         # Resolve the command from container
         command_class = self._commands[command]
-        command_instance = await self.elyx.make(command_class)
+        command_instance = self.elyx.make(command_class)
 
         command_instance.set_elyx(self.get_elyx())
         command_instance.set_application(self)

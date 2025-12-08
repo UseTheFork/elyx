@@ -46,7 +46,7 @@ class ApplicationBuilder:
                 commands = [console_commands_path]
 
         # Register callback to run after console kernel is resolved
-        async def register_commands_callback(kernel, app):
+        def register_commands_callback(kernel, app):
             def register_on_boot(app):
                 # Check if commands are paths or classes
                 for command in commands:
@@ -55,7 +55,7 @@ class ApplicationBuilder:
                     else:
                         kernel.add_commands([command])
 
-            await self._application.booted(register_on_boot)
+            self._application.booted(register_on_boot)
 
         self._application.after_resolving(ConsoleKernel, register_commands_callback)
 
