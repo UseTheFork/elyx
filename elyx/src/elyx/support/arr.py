@@ -78,3 +78,18 @@ class Arr:
                 return value(default)
 
         return array
+
+    @staticmethod
+    def wrap(value: Any) -> list:
+        """
+        Wrap the given value in a list if it is not already a list.
+
+        Args:
+            value: Value to wrap.
+
+        Returns:
+            List containing the value, or the value itself if already a list.
+        """
+        if value is None:
+            return []
+        return value if isinstance(value, list) else [value]
