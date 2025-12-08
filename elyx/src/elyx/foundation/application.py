@@ -69,11 +69,13 @@ class Application(Container):
         # TODO: This
         pass
 
-    async def handle_command(self, input: list[str]) -> None:
+    async def handle_command(self, input: list[str]) -> int:
         dispatcher = self.make(Dispatcher)
         kernel = self.make(ConsoleKernel, app=self, events=dispatcher)
         status = await kernel.handle(input)
         kernel.terminate()
+
+        return status
 
     def has_been_bootstrapped(self) -> bool:
         return self._has_been_bootstrapped
