@@ -1,5 +1,6 @@
 from typing import Callable
 
+from elyx.console.application import Application as Elyx
 from elyx.contracts.foundation.application import Application
 from elyx.contracts.support.service_provider import ServiceProvider as ServiceProviderContract
 
@@ -46,3 +47,19 @@ class ServiceProvider(ServiceProviderContract):
         while index < len(self.booted_callbacks):
             await self.app.call(self.booted_callbacks[index])
             index += 1
+
+    def commands(self, *commands) -> None:
+        """
+        Register the package's custom console commands.
+
+        Args:
+            *commands: Variable number of command classes to register.
+        """
+        # Flatten if a list is passed as first argument
+        if len(commands) == 1 and isinstance(commands[0], list):
+            commands = commands[0]
+        else:
+            commands = list(commands)
+
+        # Register a starting bootstrapper that will resolve commands
+        Elyx.starting(lambda elyx: elyx.resolve_commands(commands))

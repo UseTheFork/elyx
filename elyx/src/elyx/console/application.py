@@ -203,3 +203,13 @@ class Application(ApplicationContract):
             Elyx Application instance.
         """
         return self.elyx
+
+    @classmethod
+    def starting(cls, callback):
+        """
+        Register a console "starting" bootstrapper.
+
+        Args:
+            callback: Callable that takes the application instance.
+        """
+        cls.bootstrappers.append(callback)

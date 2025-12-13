@@ -13,6 +13,7 @@ from elyx.foundation.bootstrap.boot_providers import BootProviders
 from elyx.foundation.bootstrap.handle_exceptions import HandleExceptions
 from elyx.foundation.bootstrap.load_configuration import LoadConfiguration
 from elyx.foundation.bootstrap.load_environment_variables import LoadEnvironmentVariables
+from elyx.foundation.bootstrap.register_facades import RegisterFacades
 from elyx.foundation.bootstrap.register_providers import RegisterProviders
 
 
@@ -33,6 +34,7 @@ class ConsoleKernel(KernelContract):
             LoadEnvironmentVariables,
             LoadConfiguration,
             HandleExceptions,
+            RegisterFacades,
             RegisterProviders,
             BootProviders,
         ]

@@ -8,7 +8,7 @@ from elyx.contracts.foundation.bootstrapper import Bootstrapper
 
 
 class LoadConfiguration(Bootstrapper):
-    """"""
+    """Bootstrap class for loading configuration files from the config directory."""
 
     app: Application | None = None
 
@@ -94,7 +94,7 @@ class LoadConfiguration(Bootstrapper):
         # Get the config dict from the module
         if hasattr(module, "config"):
             config_data = module.config
-            repository.set({name: config_data})
+            repository.add(name, config_data)
 
     def get_nested_directory(self, file: Path, config_path: Path) -> str:
         """

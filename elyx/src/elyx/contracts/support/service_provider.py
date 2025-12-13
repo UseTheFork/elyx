@@ -11,7 +11,6 @@ class ServiceProvider(ABC):
         """
         pass
 
-    @abstractmethod
     async def boot(self) -> None:
         """
         Bootstrap services (called after all providers are registered).

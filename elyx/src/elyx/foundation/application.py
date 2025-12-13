@@ -8,6 +8,7 @@ from elyx.contracts.support.service_provider import ServiceProvider
 from elyx.events.dispatcher import Dispatcher
 from elyx.events.event_service_provider import EventServiceProvider
 from elyx.foundation.console.kernel import ConsoleKernel
+from elyx.foundation.providers.console_command_service_provider import ConsoleCommandServiceProvider
 from elyx.logging.log_service_provider import LogServiceProvider
 
 T = TypeVar("T")
@@ -45,6 +46,11 @@ class Application(Container):
         if base_path:
             self.set_base_path(base_path)
 
+        # register the application for use with all helper methods.
+        import elyx.support.helpers as helpers
+
+        helpers._app = self
+
         self._service_providers = {}
         self._register_base_bindings()
         self._register_base_service_providers()
@@ -60,6 +66,7 @@ class Application(Container):
 
         self.register(EventServiceProvider)
         self.register(LogServiceProvider)
+        self.register(ConsoleCommandServiceProvider)
 
     def _register_core_container_aliases(self):
         """Register the core class aliases in the container."""
@@ -319,6 +326,12 @@ class Application(Container):
 
         if isinstance(provider, str):
             provider = self.resolve_provider(provider)
+
+        if isinstance(provider, type):
+            provider = self.resolve_provider(provider)
+
+        if hasattr(provider, "register") and callable(provider.register):
+            provider.register()
 
         if hasattr(provider, "bindings"):
             for key, value in provider.bindings.items():
