@@ -4,7 +4,7 @@ from typing import Any, Callable
 from elyx.container.container import Container
 from elyx.contracts.container.container import Container as ContainerContract
 from elyx.contracts.events.dispatcher import Dispatcher as DispatcherContract
-from elyx.support.arr import Arr
+from elyx.support import Arr
 
 
 class Dispatcher(DispatcherContract):

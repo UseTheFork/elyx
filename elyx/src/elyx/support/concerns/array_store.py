@@ -1,7 +1,7 @@
 from typing import Any
 
 from elyx.contracts.support.array_store_contract import ArrayStoreContract
-from elyx.support.arr import Arr
+from elyx.support import Arr
 
 
 class ArrayStore(ArrayStoreContract):

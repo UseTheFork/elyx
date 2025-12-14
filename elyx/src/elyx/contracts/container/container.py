@@ -52,6 +52,23 @@ class Container(ContainerInterface):
         pass
 
     @abstractmethod
+    def bind_if(
+        self,
+        abstract,
+        concrete=None,
+        shared: bool = False,
+    ) -> None:
+        """
+        Register a binding with the container if it hasn't already been registered.
+
+        Args:
+            abstract: Abstract type identifier or closure.
+            concrete: Concrete implementation or closure.
+            shared: Whether the binding should be shared (singleton).
+        """
+        pass
+
+    @abstractmethod
     def singleton(
         self,
         abstract,
@@ -128,6 +145,19 @@ class Container(ContainerInterface):
     def resolved(self, abstract) -> bool:
         """
         Determine if the given abstract type has been resolved.
+
+        Args:
+            abstract: Abstract type identifier.
+
+        Returns:
+            bool
+        """
+        pass
+
+    @abstractmethod
+    def is_shared(self, abstract) -> bool:
+        """
+        Determine if a given type is shared (singleton).
 
         Args:
             abstract: Abstract type identifier.

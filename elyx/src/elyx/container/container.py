@@ -1,4 +1,4 @@
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, TypeVar, get_type_hints
 
 from dependency_injector import containers, providers
 from elyx.contracts.container.container import Container as ContainerContract
@@ -12,16 +12,45 @@ class Container(ContainerContract):
     Dependency injection container wrapping dependency-injector.
     """
 
+    _instance = None
+
     def __init__(self):
         super().__init__()
         # Use a DynamicContainer instance for storing bindings
         self._bindings = containers.DynamicContainer()
         self._instances = {}
         self._aliases = {}
+        self._shared = {}
         self._global_before_resolving_callbacks = []
         self._before_resolving_callbacks = {}
         self._global_after_resolving_callbacks = []
         self._after_resolving_callbacks = {}
+
+    @classmethod
+    def set_instance(cls, container):
+        """
+        Set the globally available instance of the container.
+
+        Args:
+            container: Container instance to set as singleton.
+
+        Returns:
+            The container instance.
+        """
+        cls._instance = container
+        return container
+
+    @classmethod
+    def get_instance(cls):
+        """
+        Get the globally available instance of the container.
+
+        Returns:
+            Container instance.
+        """
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
 
     def bound(self, abstract) -> bool:
         """
@@ -158,7 +187,24 @@ class Container(ContainerContract):
         """
         if callable(abstract) and concrete is None:
             concrete = abstract
-            abstract = abstract.__name__
+            # Try to extract return type hint as abstract
+            try:
+                hints = get_type_hints(abstract)
+                if "return" in hints:
+                    return_type = hints["return"]
+                    # Handle Union types (e.g., Type1 | Type2)
+                    if hasattr(return_type, "__origin__"):
+                        # For Union types, use the first type
+                        if hasattr(return_type, "__args__"):
+                            abstract = return_type.__args__[0]
+                        else:
+                            abstract = return_type
+                    else:
+                        abstract = return_type
+                else:
+                    abstract = abstract.__name__
+            except Exception:
+                abstract = abstract.__name__
 
         if concrete is None:
             concrete = abstract
@@ -167,10 +213,29 @@ class Container(ContainerContract):
 
         if shared:
             provider = providers.Singleton(concrete)
+            self._shared[abstract_str] = True
         else:
             provider = providers.Factory(concrete)
+            self._shared[abstract_str] = False
 
         setattr(self._bindings, abstract_str, provider)
+
+    def bind_if(
+        self,
+        abstract,
+        concrete=None,
+        shared: bool = False,
+    ) -> None:
+        """
+        Register a binding with the container if it hasn't already been registered.
+
+        Args:
+            abstract: Abstract type identifier or closure.
+            concrete: Concrete implementation or closure.
+            shared: Whether the binding should be shared (singleton).
+        """
+        if not self.bound(abstract):
+            self.bind(abstract, concrete, shared)
 
     def singleton(
         self,
@@ -185,6 +250,19 @@ class Container(ContainerContract):
             concrete: Concrete implementation or closure.
         """
         self.bind(abstract, concrete, shared=True)
+
+    def is_shared(self, abstract) -> bool:
+        """
+        Determine if a given type is shared (singleton).
+
+        Args:
+            abstract: Abstract type identifier.
+
+        Returns:
+            bool
+        """
+        abstract_str = self._normalize_abstract(abstract)
+        return self._shared.get(abstract_str, False)
 
     def instance(self, abstract, instance: T) -> T:
         """
@@ -264,10 +342,11 @@ class Container(ContainerContract):
         Flush the container of all bindings and resolved instances.
         """
         self._bindings.reset_singletons()
+        # TODO: should we fix this? should we not use dependency_injector it may be overkill here.
         # Remove all providers from _bindings
-        for attr_name in list(self._bindings.__dict__.keys()):
-            if not attr_name.startswith("_"):
-                delattr(self._bindings, attr_name)
+        # for attr_name in list(self._bindings.__dict__.keys()):
+        #     if not attr_name.startswith("_"):
+        #         delattr(self._bindings, attr_name)
 
     def call(
         self,
