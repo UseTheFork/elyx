@@ -1,3 +1,5 @@
+from typing import Optional
+
 from test.base_test import BaseTest
 
 
@@ -31,9 +33,6 @@ class ContainerDefaultValueStub:
     def __init__(self, stub: ContainerConcreteStub, default: str = "use_the_fork"):
         self.stub = stub
         self.default = default
-
-
-from typing import Optional
 
 
 class ContainerClassWithDefaultValueStub:
@@ -275,3 +274,58 @@ class TestContainer(BaseTest):
         container.bind(ContainerConcreteStub, lambda: ContainerConcreteStub())
         instance = container.make(ContainerClassWithDefaultValueStub)
         assert isinstance(instance.default, ContainerConcreteStub)
+
+    def test_bound(self):
+        """Test the bound method."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.bind(ContainerConcreteStub, lambda: ContainerConcreteStub())
+        assert container.bound(ContainerConcreteStub) is True
+        assert container.bound(IContainerContractStub) is False
+
+        container = Container()
+        container.bind(IContainerContractStub, ContainerConcreteStub)
+        assert container.bound(IContainerContractStub) is True
+        assert container.bound(ContainerConcreteStub) is False
+
+    def test_unset_removes_bound_instances(self):
+        """Test that del removes bound instances."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.instance("object", object())
+        del container["object"]
+        assert container.bound("object") is False
+
+    def test_bound_instance_and_alias_check_via_array_access(self):
+        """Test that bound checks work for instances and aliases via array access."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.instance("object", object())
+        container.alias("object", "alias")
+        assert "object" in container
+        assert "alias" in container
+
+    # public function testInternalClassWithDefaultParameters()
+    # {
+    #     $this->expectException(BindingResolutionException::class);
+    #     $this->expectExceptionMessage('Unresolvable dependency resolving [Parameter #0 [ <required> $first ]] in class Illuminate\Tests\Container\ContainerMixedPrimitiveStub');
+    #     $container = new Container;
+    #     $container->make(ContainerMixedPrimitiveStub::class, []);
+    # }
+
+
+# class ContainerMixedPrimitiveStub
+# {
+#     public $first;
+#     public $last;
+#     public $stub;
+#     public function __construct($first, ContainerConcreteStub $stub, $last)
+#     {
+#         $this->stub = $stub;
+#         $this->last = $last;
+#         $this->first = $first;
+#     }
+# }
