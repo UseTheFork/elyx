@@ -217,10 +217,27 @@ class Container(ContainerContract):
 
             # Resolve from type hint
             if param.annotation is not inspect.Parameter.empty:
+                type_to_resolve = param.annotation
+
+                # Unwrap Optional[T] to T
+                origin = get_origin(type_to_resolve)
+                if origin is Union or origin is types.UnionType:
+                    args = get_args(type_to_resolve)
+                    non_none_args = [arg for arg in args if arg is not types.NoneType]
+                    if len(args) > len(non_none_args) and len(non_none_args) == 1:
+                        type_to_resolve = non_none_args[0]
+
+                # For parameters with default values, only resolve if the type is explicitly bound.
+                if param.default is not inspect.Parameter.empty and not self.bound(type_to_resolve):
+                    continue  # Let Python use the default value
+
                 try:
-                    # We need to handle non-class annotations gracefully
-                    if inspect.isclass(param.annotation) or (isinstance(param.annotation, str)):
-                        dependencies[param.name] = self.make(param.annotation)
+                    # We need to handle non-class annotations gracefully, but skip built-ins
+                    if inspect.isclass(type_to_resolve) and type_to_resolve.__module__ != "builtins":
+                        dependencies[param.name] = self.make(type_to_resolve)
+                        continue
+                    elif isinstance(type_to_resolve, str):
+                        dependencies[param.name] = self.make(type_to_resolve)
                         continue
                 except EntryNotFoundException:
                     # If it fails, we'll fall through to check for a default value
@@ -506,6 +523,33 @@ class Container(ContainerContract):
 
         result = callback(**parameters)
         return result
+
+    def __contains__(self, key: str) -> bool:
+        """Determine if a given type is bound in the container."""
+        return self.bound(key)
+
+    def __getitem__(self, key: str) -> Any:
+        """Resolve an item from the container by key."""
+        return self.make(key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        """Register a binding or instance with the container."""
+        # If the value is a closure, we'll bind it as a factory.
+        # Otherwise, we'll register it as a concrete instance.
+        if callable(value) and not inspect.isclass(value):
+            self.bind(key, value)
+        else:
+            self.instance(key, value)
+
+    def __delitem__(self, key: str) -> None:
+        """Remove a binding from the container."""
+        key_str = self._normalize_abstract(key)
+        if key_str in self._bindings:
+            del self._bindings[key_str]
+        if key_str in self._instances:
+            del self._instances[key_str]
+        if key_str in self._resolved:
+            del self._resolved[key_str]
 
     def _normalize_abstract(self, abstract: str | type[T]) -> str:
         """

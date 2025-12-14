@@ -27,6 +27,21 @@ class ContainerNestedDependentStub:
         self.inner = inner
 
 
+class ContainerDefaultValueStub:
+    def __init__(self, stub: ContainerConcreteStub, default: str = "use_the_fork"):
+        self.stub = stub
+        self.default = default
+
+
+from typing import Optional
+
+
+class ContainerClassWithDefaultValueStub:
+    def __init__(self, no_default: ContainerConcreteStub, default: Optional[ContainerConcreteStub] = None):
+        self.no_default = no_default
+        self.default = default
+
+
 class TestContainer(BaseTest):
     """Test suite for Container class."""
 
@@ -159,7 +174,6 @@ class TestContainer(BaseTest):
         assert isinstance(instance.inner, ContainerDependentStub)
         assert isinstance(instance.inner.impl, ContainerImplementationStub)
 
-
     def test_container_is_passed_to_resolvers(self):
         """Test that the container instance is passed to factory closures."""
         from elyx.container.container import Container
@@ -168,3 +182,96 @@ class TestContainer(BaseTest):
         container.bind("something", lambda c: c)
         c = container.make("something")
         assert c is container
+
+    def test_array_access(self):
+        """Test that the container can be used with array access syntax."""
+        from elyx.container.container import Container
+
+        container = Container()
+        assert "something" not in container
+
+        container["something"] = lambda: "foo"
+        assert "something" in container
+        assert container["something"] == "foo"
+
+        del container["something"]
+        assert "something" not in container
+
+        # Test offsetSet when it's not a Closure
+        container["something"] = "text"
+        assert "something" in container
+        assert container["something"] == "text"
+
+        del container["something"]
+        assert "something" not in container
+
+    def test_aliases(self):
+        """Test that aliases can be chained and resolved."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container["foo"] = "bar"
+        container.alias("foo", "baz")
+        container.alias("baz", "bat")
+        assert container.make("foo") == "bar"
+        assert container.make("baz") == "bar"
+        assert container.make("bat") == "bar"
+
+    def test_aliases_with_parameters(self):
+        """Test that parameters are passed through aliases to the factory."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.bind("foo", lambda app, config: config)
+        container.alias("foo", "baz")
+        assert container.make("baz", config=[1, 2, 3]) == [1, 2, 3]
+
+    def test_bindings_can_be_overridden(self):
+        """Test that bindings can be overridden."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container["foo"] = "bar"
+        container["foo"] = "baz"
+        assert container["foo"] == "baz"
+
+    def test_binding_an_instance_returns_the_instance(self):
+        """Test that binding an instance returns the instance."""
+        from elyx.container.container import Container
+
+        container = Container()
+        bound = object()
+        resolved = container.instance("foo", bound)
+        assert bound is resolved
+
+    def test_binding_an_instance_as_shared(self):
+        """Test that an instance binding is shared."""
+        from elyx.container.container import Container
+
+        container = Container()
+        bound = object()
+        container.instance("foo", bound)
+        resolved = container.make("foo")
+        assert bound is resolved
+
+    def test_resolution_of_default_parameters(self):
+        """Test that the container correctly resolves dependencies with default parameters."""
+        from elyx.container.container import Container
+
+        container = Container()
+        instance = container.make(ContainerDefaultValueStub)
+        assert isinstance(instance.stub, ContainerConcreteStub)
+        assert instance.default == "use_the_fork"
+
+    def test_resolution_of_class_with_default_parameters(self):
+        """Test resolution of class dependencies with default null values."""
+        from elyx.container.container import Container
+
+        container = Container()
+        instance = container.make(ContainerClassWithDefaultValueStub)
+        assert isinstance(instance.no_default, ContainerConcreteStub)
+        assert instance.default is None
+
+        container.bind(ContainerConcreteStub, lambda: ContainerConcreteStub())
+        instance = container.make(ContainerClassWithDefaultValueStub)
+        assert isinstance(instance.default, ContainerConcreteStub)
