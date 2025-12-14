@@ -27,7 +27,7 @@ lint:
   enable: false
   commands: []
 llm:
-  model: anthropic
+  model: gemini
   gemini:
     enable: false
     model_params: {}

@@ -1,8 +1,7 @@
 from pathlib import Path
 from typing import Optional
 
-from dependency_injector import providers
-
+from elyx.contracts.console.kernel import Kernel as ConsoleKernelContract
 from elyx.foundation.application import Application
 from elyx.foundation.bootstrap.register_providers import RegisterProviders
 from elyx.foundation.console.kernel import ConsoleKernel
@@ -20,12 +19,7 @@ class ApplicationBuilder:
         Returns:
             ApplicationBuilder instance for chaining.
         """
-        # Register ConsoleKernel with explicit dependency injection
-        abstract_str = self._application._normalize_abstract(ConsoleKernel)
-
-        # Use self._application directly, not getattr
-        provider = providers.Singleton(ConsoleKernel, app=self._application)
-        setattr(self._application._bindings, abstract_str, provider)
+        self._application.singleton(ConsoleKernelContract, ConsoleKernel)
 
         return self
 

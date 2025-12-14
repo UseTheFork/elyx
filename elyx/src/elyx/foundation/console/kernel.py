@@ -7,7 +7,6 @@ from typing import Any, List
 
 from elyx.console.application import Application as ConsoleApplication
 from elyx.contracts.console.kernel import Kernel as KernelContract
-from elyx.contracts.events.dispatcher import Dispatcher
 from elyx.contracts.foundation.application import Application
 from elyx.foundation.bootstrap.boot_providers import BootProviders
 from elyx.foundation.bootstrap.handle_exceptions import HandleExceptions
@@ -39,9 +38,10 @@ class ConsoleKernel(KernelContract):
             BootProviders,
         ]
 
-    def __init__(self, app: Application, events: Dispatcher):
+    def __init__(self, app: Application, **kwargs):
         self.app = app
-        self.events = events
+        # TODO: add this back in
+        # self.events = events
 
     def bootstrap(self) -> None:
         """

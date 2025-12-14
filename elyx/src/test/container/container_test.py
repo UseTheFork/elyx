@@ -67,18 +67,15 @@ class TestContainer(BaseTest):
         from elyx.container.container import Container
 
         container = Container()
-        
+
         def factory() -> IContainerContractStub | ContainerImplementationStub:
             return ContainerImplementationStub()
-        
+
         def singleton_factory() -> ContainerConcreteStub:
             return ContainerConcreteStub()
-        
+
         container.bind(factory)
         container.singleton(singleton_factory)
-        
-        assert isinstance(
-            container.make(IContainerContractStub),
-            IContainerContractStub
-        )
+
+        assert isinstance(container.make(IContainerContractStub), IContainerContractStub)
         assert container.is_shared(ContainerConcreteStub)
