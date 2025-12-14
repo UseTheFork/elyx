@@ -165,7 +165,7 @@ class Container(ContainerContract):
 
         # We're ready to build an instance of the concrete implementation.
         if callable(concrete):
-            instance = concrete(**kwargs)
+            instance = self._build(concrete, **kwargs)
         else:
             instance = concrete
 
@@ -180,6 +180,62 @@ class Container(ContainerContract):
             self._fire_after_resolving_callbacks(abstract_str, instance)
 
         return instance
+
+    def _build(self, concrete: Callable, **kwargs) -> Any:
+        """Build an instance of the given type with dependency injection."""
+        if not inspect.isclass(concrete):
+            # It's a factory/closure. We'll try to pass the container as the first
+            # argument, which is a common convention in our containers.
+            try:
+                return concrete(self, **kwargs)
+            except TypeError as e:
+                # If the closure doesn't accept the container, it will raise a
+                # TypeError. We can inspect the error to see if that's the case
+                # and then try calling it without the container.
+                if "positional argument" in str(e):
+                    return concrete(**kwargs)
+                raise
+
+        try:
+            # Get constructor signature
+            constructor = getattr(concrete, "__init__")
+            signature = inspect.signature(constructor)
+        except (AttributeError, ValueError):
+            # No constructor or not inspectable, just instantiate
+            return concrete(**kwargs)
+
+        dependencies = {}
+        for param in signature.parameters.values():
+            # Skip 'self' and variable args
+            if param.name == "self" or param.kind in [param.VAR_POSITIONAL, param.VAR_KEYWORD]:
+                continue
+
+            # If a value is already provided in kwargs, use it
+            if param.name in kwargs:
+                dependencies[param.name] = kwargs.pop(param.name)
+                continue
+
+            # Resolve from type hint
+            if param.annotation is not inspect.Parameter.empty:
+                try:
+                    # We need to handle non-class annotations gracefully
+                    if inspect.isclass(param.annotation) or (isinstance(param.annotation, str)):
+                        dependencies[param.name] = self.make(param.annotation)
+                        continue
+                except EntryNotFoundException:
+                    # If it fails, we'll fall through to check for a default value
+                    pass
+
+            # If there's a default value, we don't need to do anything, Python will handle it
+            if param.default is not inspect.Parameter.empty:
+                continue
+
+            # If we're here, we can't resolve the dependency and it has no default.
+            raise EntryNotFoundException(
+                f"Unresolvable dependency: parameter '{param.name}' of type '{param.annotation}' in class '{concrete.__name__}'"
+            )
+
+        return concrete(**dependencies, **kwargs)
 
     def _drop_stale_instances(self, abstract: str) -> None:
         """
@@ -305,6 +361,20 @@ class Container(ContainerContract):
             concrete: Concrete implementation or closure.
         """
         self.bind(abstract, concrete, shared=True)
+
+    def singleton_if(
+        self,
+        abstract,
+        concrete=None,
+    ) -> None:
+        """
+        Register a shared binding in the container if it hasn't already been registered.
+
+        Args:
+            abstract: Abstract type identifier or closure.
+            concrete: Concrete implementation or closure.
+        """
+        self.bind_if(abstract, concrete, shared=True)
 
     def is_shared(self, abstract) -> bool:
         """

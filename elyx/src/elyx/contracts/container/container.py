@@ -84,6 +84,21 @@ class Container(ContainerInterface):
         pass
 
     @abstractmethod
+    def singleton_if(
+        self,
+        abstract,
+        concrete=None,
+    ) -> None:
+        """
+        Register a shared binding in the container if it hasn't already been registered.
+
+        Args:
+            abstract: Abstract type identifier or closure.
+            concrete: Concrete implementation or closure.
+        """
+        pass
+
+    @abstractmethod
     def instance(self, abstract, instance: T) -> T:
         """
         Register an existing instance as shared in the container.
