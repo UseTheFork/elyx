@@ -120,6 +120,21 @@ class Container(ContainerInterface):
         pass
 
     @abstractmethod
+    def forget_instance(self, abstract) -> None:
+        """
+        Remove a resolved instance from the instance cache.
+
+        Args:
+            abstract: The abstract type to forget.
+        """
+        pass
+
+    @abstractmethod
+    def forget_instances(self) -> None:
+        """Clear all of the instances from the container."""
+        pass
+
+    @abstractmethod
     def make(self, abstract, **kwargs) -> T | Any:
         """
         Resolve the given type from the container.

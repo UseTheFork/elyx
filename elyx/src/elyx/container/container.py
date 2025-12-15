@@ -21,6 +21,7 @@ class Container(ContainerContract):
         self._instances = {}
         self._aliases = {}
         self._resolved = {}
+        self._scoped_instances = {}
         self._global_before_resolving_callbacks = []
         self._before_resolving_callbacks = {}
         self._global_after_resolving_callbacks = []
@@ -183,6 +184,9 @@ class Container(ContainerContract):
 
     def _build(self, concrete: Callable, **kwargs) -> Any:
         """Build an instance of the given type with dependency injection."""
+        if inspect.isclass(concrete) and inspect.isabstract(concrete):
+            raise EntryNotFoundException(f"Target [{self._normalize_abstract(concrete)}] is not instantiable.")
+
         if not inspect.isclass(concrete):
             # It's a factory/closure. We'll try to pass the container as the first
             # argument, which is a common convention in our containers.
@@ -239,8 +243,14 @@ class Container(ContainerContract):
                     elif isinstance(type_to_resolve, str):
                         dependencies[param.name] = self.make(type_to_resolve)
                         continue
-                except EntryNotFoundException:
-                    # If it fails, we'll fall through to check for a default value
+                except EntryNotFoundException as e:
+                    # If resolution fails, check for a default value before re-raising with context.
+                    if param.default is inspect.Parameter.empty:
+                        message = e.id if hasattr(e, "id") else str(e)
+                        raise EntryNotFoundException(
+                            f"{message} while building [{self._normalize_abstract(concrete)}]"
+                        ) from e
+                    # If a default value exists, we can ignore the exception and let Python use it.
                     pass
 
             # If there's a default value, we don't need to do anything, Python will handle it
@@ -404,7 +414,7 @@ class Container(ContainerContract):
             bool
         """
         abstract_str = self._normalize_abstract(abstract)
-        return self._bindings.get(abstract_str, {}).get("shared", False)
+        return abstract_str in self._instances or self._bindings.get(abstract_str, {}).get("shared", False)
 
     def instance(self, abstract, instance: T) -> T:
         """
@@ -425,9 +435,6 @@ class Container(ContainerContract):
 
         # Store the instance
         self._instances[abstract_str] = instance
-
-        # Create a binding that returns this instance
-        self._bindings[abstract_str] = {"concrete": lambda: instance, "shared": True}
 
         return instance
 
@@ -484,10 +491,7 @@ class Container(ContainerContract):
         self._resolved = {}
         self._bindings = {}
         self._instances = {}
-        self._global_before_resolving_callbacks = []
-        self._before_resolving_callbacks = {}
-        self._global_after_resolving_callbacks = []
-        self._after_resolving_callbacks = {}
+        self._scoped_instances = {}
 
     def call(
         self,
@@ -677,3 +681,18 @@ class Container(ContainerContract):
         if parameters is None:
             parameters = {}
         return lambda: self.call(callback, parameters)
+
+    def forget_instance(self, abstract) -> None:
+        """
+        Remove a resolved instance from the instance cache.
+
+        Args:
+            abstract: The abstract type to forget.
+        """
+        abstract_str = self._normalize_abstract(abstract)
+        if abstract_str in self._instances:
+            del self._instances[abstract_str]
+
+    def forget_instances(self) -> None:
+        """Clear all of the instances from the container."""
+        self._instances = {}

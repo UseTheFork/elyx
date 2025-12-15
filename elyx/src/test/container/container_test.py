@@ -1,5 +1,8 @@
+from abc import ABC, abstractmethod
 from typing import Optional
 
+import pytest
+from elyx.exceptions import EntryNotFoundException
 from test.base_test import BaseTest
 
 
@@ -7,21 +10,28 @@ class ContainerConcreteStub:
     pass
 
 
-class IContainerContractStub:
-    pass
+class IContainerContractStub(ABC):
+    @abstractmethod
+    def get_value(self):
+        pass
 
 
 class ContainerImplementationStub(IContainerContractStub):
-    pass
+    def get_value(self):
+        pass
 
 
 class ContainerImplementationStubTwo(IContainerContractStub):
-    pass
+    def get_value(self):
+        pass
 
 
 class ContainerDependentStub:
     def __init__(self, impl: IContainerContractStub):
         self.impl = impl
+
+    def get_value(self):
+        pass
 
 
 class ContainerNestedDependentStub:
@@ -39,6 +49,13 @@ class ContainerClassWithDefaultValueStub:
     def __init__(self, no_default: ContainerConcreteStub, default: Optional[ContainerConcreteStub] = None):
         self.no_default = no_default
         self.default = default
+
+
+class ContainerMixedPrimitiveStub:
+    def __init__(self, first, stub: ContainerConcreteStub, last):
+        self.first = first
+        self.stub = stub
+        self.last = last
 
 
 class TestContainer(BaseTest):
@@ -308,24 +325,96 @@ class TestContainer(BaseTest):
         assert "object" in container
         assert "alias" in container
 
-    # public function testInternalClassWithDefaultParameters()
-    # {
-    #     $this->expectException(BindingResolutionException::class);
-    #     $this->expectExceptionMessage('Unresolvable dependency resolving [Parameter #0 [ <required> $first ]] in class Illuminate\Tests\Container\ContainerMixedPrimitiveStub');
-    #     $container = new Container;
-    #     $container->make(ContainerMixedPrimitiveStub::class, []);
-    # }
+    def test_unresolvable_primitive_parameter_throws_exception(self):
+        """Test that an exception is thrown for unresolvable primitive parameters."""
+        from elyx.container.container import Container
+
+        container = Container()
+        with pytest.raises(EntryNotFoundException) as exc_info:
+            container.make(ContainerMixedPrimitiveStub)
+
+        assert "Unresolvable dependency: parameter 'first'" in str(exc_info.value)
+
+    def test_exception_on_uninstantiable_abstract(self):
+        """Test that an exception is thrown for uninstantiable abstract classes."""
+        from elyx.container.container import Container
+
+        container = Container()
+        with pytest.raises(EntryNotFoundException) as exc_info:
+            container.make(IContainerContractStub)
+
+        assert "Target" in str(exc_info.value)
+        assert "is not instantiable" in str(exc_info.value)
+        assert "IContainerContractStub" in str(exc_info.value)
+
+    def test_exception_includes_build_stack(self):
+        """Test that exception messages include the build stack for context."""
+        from elyx.container.container import Container
+
+        container = Container()
+        with pytest.raises(EntryNotFoundException) as exc_info:
+            container.make(ContainerDependentStub)
+
+        assert "Target" in str(exc_info.value)
+        assert "is not instantiable" in str(exc_info.value)
+        assert "while building" in str(exc_info.value)
+        assert "ContainerDependentStub" in str(exc_info.value)
+
+    def test_exception_when_class_does_not_exist(self):
+        """Test that an exception is thrown for a non-existent class string."""
+        from elyx.container.container import Container
+
+        container = Container()
+        with pytest.raises(EntryNotFoundException) as exc_info:
+            container.make("NonExistent.DummyClass")
+
+        assert "Entry not found for identifier: NonExistent.DummyClass" in str(exc_info.value)
+
+    def test_forget_instance_forgets_instance(self):
+        """Test that forgetting an instance removes it from the shared cache."""
+        from elyx.container.container import Container
+
+        container = Container()
+        stub = ContainerConcreteStub()
+        container.instance(ContainerConcreteStub, stub)
+        assert container.is_shared(ContainerConcreteStub)
+        container.forget_instance(ContainerConcreteStub)
+        assert not container.is_shared(ContainerConcreteStub)
+
+    def test_forget_instances_forgets_all_instances(self):
+        """Test that forgetting all instances clears the shared cache."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.instance("Instance1", ContainerConcreteStub())
+        container.instance("Instance2", ContainerConcreteStub())
+        container.instance("Instance3", ContainerConcreteStub())
+        assert container.is_shared("Instance1")
+        assert container.is_shared("Instance2")
+        assert container.is_shared("Instance3")
+        container.forget_instances()
+        assert not container.is_shared("Instance1")
+        assert not container.is_shared("Instance2")
+        assert not container.is_shared("Instance3")
 
 
-# class ContainerMixedPrimitiveStub
-# {
-#     public $first;
-#     public $last;
-#     public $stub;
-#     public function __construct($first, ContainerConcreteStub $stub, $last)
-#     {
-#         $this->stub = $stub;
-#         $this->last = $last;
-#         $this->first = $first;
-#     }
-# }
+    def test_container_flush_flushes_all_states(self):
+        """Test that flush removes all bindings, aliases, and resolved instances."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.singleton("ConcreteStub", lambda: ContainerConcreteStub())
+        container.alias("ConcreteStub", "ContainerConcreteStubAlias")
+        container.make("ConcreteStub")
+
+        assert container.resolved("ConcreteStub")
+        assert container.is_alias("ContainerConcreteStubAlias")
+        assert container.bound("ConcreteStub")
+        assert container.is_shared("ConcreteStub")
+
+        container.flush()
+
+        assert not container.resolved("ConcreteStub")
+        assert not container.is_alias("ContainerConcreteStubAlias")
+        assert not container.bound("ConcreteStub")
+        assert not container.is_shared("ConcreteStub")
