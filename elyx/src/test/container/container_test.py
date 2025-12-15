@@ -58,6 +58,41 @@ class ContainerMixedPrimitiveStub:
         self.last = last
 
 
+class ContainerInjectVariableStubWithInterfaceImplementation(IContainerContractStub):
+    def __init__(self, concrete: ContainerConcreteStub, something: str):
+        self.concrete = concrete
+        self.something = something
+
+    def get_value(self):
+        pass
+
+
+class ContainerSingletonAttribute:
+    pass
+
+
+class ContainerBindSingletonTestInterface(ABC):
+    @abstractmethod
+    def get_value(self):
+        pass
+
+
+class ContainerBindSingletonTestImplementation(ContainerBindSingletonTestInterface):
+    def get_value(self):
+        pass
+
+
+class ContainerBindScopedTestInterface(ABC):
+    @abstractmethod
+    def get_value(self):
+        pass
+
+
+class ContainerBindScopedTestImplementation(ContainerBindScopedTestInterface):
+    def get_value(self):
+        pass
+
+
 class TestContainer(BaseTest):
     """Test suite for Container class."""
 
@@ -397,7 +432,6 @@ class TestContainer(BaseTest):
         assert not container.is_shared("Instance2")
         assert not container.is_shared("Instance3")
 
-
     def test_container_flush_flushes_all_states(self):
         """Test that flush removes all bindings, aliases, and resolved instances."""
         from elyx.container.container import Container
@@ -418,3 +452,237 @@ class TestContainer(BaseTest):
         assert not container.is_alias("ContainerConcreteStubAlias")
         assert not container.bound("ConcreteStub")
         assert not container.is_shared("ConcreteStub")
+
+    def test_resolved_resolves_alias_to_binding_name_before_checking(self):
+        """Test that resolved() checks the underlying binding of an alias."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.singleton("ConcreteStub", lambda: ContainerConcreteStub())
+        container.alias("ConcreteStub", "foo")
+        assert not container.resolved("ConcreteStub")
+        assert not container.resolved("foo")
+        container.make("ConcreteStub")
+        assert container.resolved("ConcreteStub")
+        assert container.resolved("foo")
+
+    def test_get_alias(self):
+        """Test that get_alias returns the underlying abstract type."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.bind("ConcreteStub", ContainerConcreteStub)
+        container.alias("ConcreteStub", "foo")
+        assert container.get_alias("foo") == self.container._normalize_abstract("ConcreteStub")
+
+    def test_get_alias_recursive(self):
+        """Test that get_alias can recursively resolve aliases."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.bind("ConcreteStub", ContainerConcreteStub)
+        container.alias("ConcreteStub", "foo")
+        container.alias("foo", "bar")
+        container.alias("bar", "baz")
+
+        assert container.get_alias("baz") == container._normalize_abstract("ConcreteStub")
+        assert container.is_alias("baz")
+        assert container.is_alias("bar")
+        assert container.is_alias("foo")
+
+    def test_container_get_factory(self):
+        """Test that the factory method returns a callable that resolves the binding."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.bind("name", lambda: "use_the_fork")
+        factory = container.factory("name")
+        assert container.make("name") == factory()
+
+    def test_make_with_is_alias_for_make(self, mocker):
+        """Test that make_with is an alias for the make method."""
+        from elyx.container.container import Container
+
+        container = Container()
+        return_object = object()
+        mock_make = mocker.patch.object(container, "make", return_value=return_object)
+
+        result = container.make_with(ContainerDefaultValueStub, default="not_the_spoon")
+
+        mock_make.assert_called_once_with(ContainerDefaultValueStub, default="not_the_spoon")
+        assert result is return_object
+
+    def test_resolving_with_parameters(self):
+        """Test that parameters can be passed to resolve dependencies."""
+        from elyx.container.container import Container
+
+        container = Container()
+        instance = container.make(ContainerDefaultValueStub, default="not_the_spoon")
+        assert instance.default == "not_the_spoon"
+
+        instance = container.make(ContainerDefaultValueStub)
+        assert instance.default == "use_the_fork"
+
+        container.bind("foo", lambda app, config: config)
+        assert container.make("foo", config=[1, 2, 3]) == [1, 2, 3]
+
+    def test_resolving_with_array_of_mixed_parameters(self):
+        """Test resolving with a mix of provided and auto-wired parameters."""
+        from elyx.container.container import Container
+
+        container = Container()
+        instance = container.make(ContainerMixedPrimitiveStub, first=1, last=2, third=3)
+        assert instance.first == 1
+        assert isinstance(instance.stub, ContainerConcreteStub)
+        assert instance.last == 2
+        assert not hasattr(instance, "third")
+
+    def test_resolving_with_using_an_interface(self):
+        """Test resolving an interface with parameters passed to the concrete class."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.bind(
+            IContainerContractStub,
+            ContainerInjectVariableStubWithInterfaceImplementation,
+        )
+        instance = container.make(IContainerContractStub, something="use_the_spoon")
+        assert instance.something == "use_the_spoon"
+        assert isinstance(instance.concrete, ContainerConcreteStub)
+
+    def test_nested_parameter_override(self):
+        """Test that nested make calls can override parameters."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.bind("foo", lambda app, **kwargs: app.make("bar", name="Fork"))
+        container.bind("bar", lambda app, **kwargs: kwargs)
+        assert container.make("foo", something="else") == {"name": "Fork"}
+
+    def test_nested_parameters_are_reset_for_fresh_make(self):
+        """Test that parameters are not leaked to nested make calls."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.bind("foo", lambda app, **kwargs: app.make("bar"))
+        container.bind("bar", lambda app, **kwargs: kwargs)
+        assert container.make("foo", something="else") == {}
+
+    def test_singleton_bindings_not_respected_with_make_parameters(self):
+        """Test that singletons are re-resolved when make is called with parameters."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.singleton("foo", lambda app, **kwargs: kwargs)
+        container.singleton("foo", lambda app, **kwargs: kwargs)
+        assert container.make("foo", name="fork") == {"name": "fork"}
+        assert container.make("foo", name="spoon") == {"name": "spoon"}
+
+    def test_build_class_with_no_constructor(self):
+        """Test that the container can build a class with no constructor."""
+        from elyx.container.container import Container
+
+        container = Container()
+        instance = container._build(ContainerConcreteStub)
+        assert isinstance(instance, ContainerConcreteStub)
+
+    def test_build_with_constructor_dependencies(self):
+        """Test that the container can build a class with constructor dependencies."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.bind(IContainerContractStub, ContainerImplementationStub)
+        instance = container._build(ContainerDependentStub)
+        assert isinstance(instance, ContainerDependentStub)
+
+    def test_container_knows_entry(self):
+        """Test that the container knows if an entry is bound."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.bind(IContainerContractStub, ContainerImplementationStub)
+        assert container.has(IContainerContractStub)
+
+    def test_container_can_bind_any_word(self):
+        """Test that the container can bind a string to a concrete class."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.bind("Fork", object)
+        assert isinstance(container.make("Fork"), object)
+
+    def test_container_can_dynamically_set_service(self):
+        """Test that services can be set dynamically via array access."""
+        from elyx.container.container import Container
+
+        container = Container()
+        assert "name" not in container
+        container["name"] = "Fork"
+        assert "name" in container
+        assert container["name"] == "Fork"
+
+    def test_unknown_entry_throws_exception(self):
+        """Test that getting an unknown entry throws an exception."""
+        from elyx.container.container import Container
+        from elyx.exceptions import EntryNotFoundException
+
+        container = Container()
+        with pytest.raises(EntryNotFoundException):
+            container.get("Taylor")
+
+    def test_bound_entries_throws_exception_when_not_resolvable(self):
+        """Test that a bound but unresolvable entry throws an exception."""
+        from elyx.container.container import Container
+        from elyx.exceptions import ContainerException
+
+        container = Container()
+        container.bind("Taylor", IContainerContractStub)
+        with pytest.raises(ContainerException):
+            container.get("Taylor")
+
+    def test_container_can_resolve_classes_with_get(self):
+        """Test that the container can resolve concrete classes with get()."""
+        from elyx.container.container import Container
+
+        container = Container()
+        instance = container.get(ContainerConcreteStub)
+        assert isinstance(instance, ContainerConcreteStub)
+
+    def test_container_singleton_attribute(self):
+        """Test that a class registered as a singleton is always the same instance."""
+        from elyx.container.container import Container
+
+        container = Container()
+        container.singleton(ContainerSingletonAttribute)
+        first_instantiation = container.get(ContainerSingletonAttribute)
+        second_instantiation = container.get(ContainerSingletonAttribute)
+        assert first_instantiation is second_instantiation
+
+
+    def test_bind_interface_to_singleton(self):
+        """Test binding an interface to a singleton implementation."""
+        container = self.container
+        container.singleton(ContainerBindSingletonTestInterface, ContainerBindSingletonTestImplementation)
+        instance1 = container.get(ContainerBindSingletonTestInterface)
+        instance2 = container.get(ContainerBindSingletonTestInterface)
+        assert instance1 is instance2
+
+    def test_bind_interface_to_scoped(self):
+        """Test binding an interface to a scoped implementation."""
+        container = self.container
+        container.scoped(ContainerBindScopedTestInterface, ContainerBindScopedTestImplementation)
+        container.resolve_environment_using(lambda env: env == ["test"])
+
+        instance1 = container.get(ContainerBindScopedTestInterface)
+        instance2 = container.get(ContainerBindScopedTestInterface)
+        assert instance1 is instance2
+
+        # With a different environment, it should still be the same instance
+        container.resolve_environment_using(lambda env: env == ["test2"])
+        instance3 = container.get(ContainerBindScopedTestInterface)
+        assert instance1 is instance3
+
+        # After forgetting scoped instances, it should be a new instance
+        container.forget_scoped_instances()
+        instance4 = container.get(ContainerBindScopedTestInterface)
+        assert instance1 is not instance4

@@ -1,6 +1,6 @@
 import inspect
 import types
-from typing import Any, Callable, TypeVar, Union, get_args, get_origin
+from typing import Any, Callable, Optional, TypeVar, Union, get_args, get_origin
 
 from elyx.contracts.container.container import Container as ContainerContract
 from elyx.exceptions import EntryNotFoundException
@@ -26,6 +26,7 @@ class Container(ContainerContract):
         self._before_resolving_callbacks = {}
         self._global_after_resolving_callbacks = []
         self._after_resolving_callbacks = {}
+        self.environment_resolver = None
 
     @classmethod
     def set_instance(cls, container):
@@ -64,7 +65,12 @@ class Container(ContainerContract):
             bool
         """
         abstract_str = self._normalize_abstract(abstract)
-        return abstract_str in self._bindings or abstract_str in self._instances or self.is_alias(abstract_str)
+        return (
+            abstract_str in self._bindings
+            or abstract_str in self._instances
+            or abstract_str in self._scoped_instances
+            or self.is_alias(abstract_str)
+        )
 
     def has(self, id: str) -> bool:
         """
@@ -78,7 +84,7 @@ class Container(ContainerContract):
         """
         return self.bound(id)
 
-    async def get(self, id: str) -> T | Any:
+    def get(self, id: str) -> T | Any:
         """
         Finds an entry of the container by its identifier and returns it.
 
@@ -91,8 +97,6 @@ class Container(ContainerContract):
         Raises:
             EntryNotFoundException: If the entry is not found.
         """
-        from elyx.container.exceptions import EntryNotFoundException
-
         try:
             return self.make(id)
         except Exception as e:
@@ -149,8 +153,11 @@ class Container(ContainerContract):
         if raise_events:
             self._fire_before_resolving_callbacks(abstract_str, **kwargs)
 
-        # If an instance already exists for this abstract, we'll return it.
-        if abstract_str in self._instances:
+        # If an instance already exists and we're not passing parameters, return it.
+        if not kwargs and abstract_str in self._scoped_instances:
+            return self._scoped_instances[abstract_str]
+
+        if not kwargs and abstract_str in self._instances:
             return self._instances[abstract_str]
 
         binding = self._bindings.get(abstract_str)
@@ -170,8 +177,12 @@ class Container(ContainerContract):
         else:
             instance = concrete
 
-        # If the binding is shared, we'll cache the instance so we can return it next time.
-        if self.is_shared(abstract_str):
+        # If the binding is scoped, cache the instance so it can be reused within the same scope.
+        if not kwargs and self.is_scoped(abstract_str):
+            self._scoped_instances[abstract_str] = instance
+
+        # If the binding is shared and we're not passing parameters, cache the instance.
+        if not kwargs and self.is_shared(abstract_str):
             self._instances[abstract_str] = instance
 
         self._resolved[abstract_str] = True
@@ -262,7 +273,7 @@ class Container(ContainerContract):
                 f"Unresolvable dependency: parameter '{param.name}' of type '{param.annotation}' in class '{concrete.__name__}'"
             )
 
-        return concrete(**dependencies, **kwargs)
+        return concrete(**dependencies)
 
     def _drop_stale_instances(self, abstract: str) -> None:
         """
@@ -274,11 +285,14 @@ class Container(ContainerContract):
         if abstract in self._instances:
             del self._instances[abstract]
 
+        if abstract in self._scoped_instances:
+            del self._scoped_instances[abstract]
+
         if abstract in self._aliases:
             del self._aliases[abstract]
 
     def _bind_based_on_closure_return_types(
-        self, abstract: Callable, concrete: Callable | None = None, shared: bool = False
+        self, abstract: Callable, concrete: Callable | None = None, shared: bool = False, scoped: bool = False
     ) -> None:
         """
         Register a binding with the container based on the given closure's return types.
@@ -292,7 +306,7 @@ class Container(ContainerContract):
             concrete = abstract
 
         for return_type in self._get_closure_return_types(abstract):
-            self.bind(return_type, concrete, shared)
+            self.bind(return_type, concrete, shared, scoped=scoped)
 
     def _get_closure_return_types(self, closure: Callable) -> list[type]:
         """
@@ -336,6 +350,7 @@ class Container(ContainerContract):
         abstract,
         concrete=None,
         shared: bool = False,
+        **kwargs,
     ) -> None:
         """
         Register a binding with the container.
@@ -345,9 +360,10 @@ class Container(ContainerContract):
             concrete: Concrete implementation or closure.
             shared: Whether the binding should be shared (singleton).
         """
+        scoped = kwargs.get("scoped", False)
 
         if callable(abstract) and not inspect.isclass(abstract):
-            return self._bind_based_on_closure_return_types(abstract, concrete, shared)
+            return self._bind_based_on_closure_return_types(abstract, concrete, shared, scoped)
 
         abstract_str = self._normalize_abstract(abstract)
 
@@ -356,7 +372,7 @@ class Container(ContainerContract):
         if concrete is None:
             concrete = abstract
 
-        self._bindings[abstract_str] = {"concrete": concrete, "shared": shared}
+        self._bindings[abstract_str] = {"concrete": concrete, "shared": shared, "scoped": scoped}
 
     def bind_if(
         self,
@@ -403,6 +419,10 @@ class Container(ContainerContract):
         """
         self.bind_if(abstract, concrete, shared=True)
 
+    def scoped(self, abstract, concrete=None) -> None:
+        """Register a scoped binding in the container."""
+        self.bind(abstract, concrete, scoped=True)
+
     def is_shared(self, abstract) -> bool:
         """
         Determine if a given type is shared (singleton).
@@ -415,6 +435,19 @@ class Container(ContainerContract):
         """
         abstract_str = self._normalize_abstract(abstract)
         return abstract_str in self._instances or self._bindings.get(abstract_str, {}).get("shared", False)
+
+    def is_scoped(self, abstract) -> bool:
+        """
+        Determine if a given type is scoped.
+
+        Args:
+            abstract: Abstract type identifier.
+
+        Returns:
+            bool
+        """
+        abstract_str = self._normalize_abstract(abstract)
+        return abstract_str in self._scoped_instances or self._bindings.get(abstract_str, {}).get("scoped", False)
 
     def instance(self, abstract, instance: T) -> T:
         """
@@ -642,7 +675,7 @@ class Container(ContainerContract):
         if abstract in self._before_resolving_callbacks:
             self._fire_callback_array(self._before_resolving_callbacks[abstract], abstract, kwargs, self)
 
-    async def factory(self, abstract):
+    def factory(self, abstract) -> Callable:
         """
         Resolve the given type from the container as a factory.
 
@@ -650,11 +683,11 @@ class Container(ContainerContract):
             abstract: Abstract type identifier or class.
 
         Returns:
-            Resolved instance.
+            A callable that will resolve the abstract type.
         """
-        return self.make(abstract)
+        return lambda: self.make(abstract)
 
-    async def make_with(self, abstract, **kwargs):
+    def make_with(self, abstract, **kwargs):
         """
         Resolve the given type from the container with parameters.
 
@@ -696,3 +729,31 @@ class Container(ContainerContract):
     def forget_instances(self) -> None:
         """Clear all of the instances from the container."""
         self._instances = {}
+
+    def forget_scoped_instances(self) -> None:
+        """Clear all of the scoped instances from the container."""
+        self._scoped_instances = {}
+
+    def resolve_environment_using(self, callback: Optional[Callable]) -> None:
+        """
+        Set the callback which determines the current container environment.
+
+        Args:
+            callback: The callback to resolve the environment.
+        """
+        self.environment_resolver = callback
+
+    def current_environment_is(self, environments: Union[str, list[str]]) -> bool:
+        """
+        Determine the environment for the container.
+
+        Args:
+            environments: The environment(s) to check against.
+
+        Returns:
+            True if the current environment matches, False otherwise.
+        """
+        if self.environment_resolver is None:
+            return False
+
+        return self.environment_resolver(environments)

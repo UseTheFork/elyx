@@ -41,7 +41,22 @@ lsp:
   enable: false
   timeout: 30
   servers: {}
-presets: []
+presets:
+- id: container
+  editable_files:
+  - elyx/src/elyx/container/container.py
+  - elyx/src/elyx/contracts/container/container.py
+  - elyx/src/elyx/contracts/container/container_interface.py
+  - elyx/src/elyx/exceptions.py
+  - elyx/src/elyx/foundation/application.py
+  - elyx/src/elyx/foundation/configuration/application_builder.py
+  - elyx/src/test/base_test.py
+  - elyx/src/test/container/container_test.py
+  conventions:
+  - COMMENT_STANDARDS.md
+  - PROJECT_ARCHITECTURE.md
+  prompt: None
+  load_on_boot: false
 system:
   paths: {}
 web:

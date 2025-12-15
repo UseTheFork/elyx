@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, TypeVar
+from typing import Any, Callable, Optional, TypeVar, Union
 
 from elyx.contracts.container.container_interface import ContainerInterface
 
@@ -135,6 +135,11 @@ class Container(ContainerInterface):
         pass
 
     @abstractmethod
+    def forget_scoped_instances(self) -> None:
+        """Clear all of the scoped instances from the container."""
+        pass
+
+    @abstractmethod
     def make(self, abstract, **kwargs) -> T | Any:
         """
         Resolve the given type from the container.
@@ -148,6 +153,20 @@ class Container(ContainerInterface):
 
         Raises:
             BindingResolutionException: If binding resolution fails.
+        """
+        pass
+
+    @abstractmethod
+    def make_with(self, abstract, **kwargs) -> T | Any:
+        """
+        Resolve the given type from the container with parameters.
+
+        Args:
+            abstract: Abstract type identifier or class.
+            **kwargs: Parameters to pass to the constructor.
+
+        Returns:
+            Resolved instance.
         """
         pass
 
@@ -197,6 +216,32 @@ class Container(ContainerInterface):
         """
         pass
 
+    @abstractmethod
+    def is_scoped(self, abstract) -> bool:
+        """
+        Determine if a given type is scoped.
+
+        Args:
+            abstract: Abstract type identifier.
+
+        Returns:
+            bool
+        """
+        pass
+
+    @abstractmethod
+    def factory(self, abstract) -> Callable:
+        """
+        Resolve the given type from the container as a factory.
+
+        Args:
+            abstract: Abstract type identifier or class.
+
+        Returns:
+            A callable that will resolve the abstract type.
+        """
+        pass
+
     # @abstractmethod
     # def before_resolving(self, abstract: str | type[T] | Callable, callback: Callable | None = None) -> None:
     #     """
@@ -229,3 +274,26 @@ class Container(ContainerInterface):
     #         callback: Callback to execute after resolving.
     #     """
     #     pass
+
+    @abstractmethod
+    def resolve_environment_using(self, callback: Optional[Callable]) -> None:
+        """
+        Set the callback which determines the current container environment.
+
+        Args:
+            callback: The callback to resolve the environment.
+        """
+        pass
+
+    @abstractmethod
+    def current_environment_is(self, environments: Union[str, list[str]]) -> bool:
+        """
+        Determine the environment for the container.
+
+        Args:
+            environments: The environment(s) to check against.
+
+        Returns:
+            True if the current environment matches, False otherwise.
+        """
+        pass
