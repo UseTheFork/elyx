@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 import pytest
-from elyx.exceptions import EntryNotFoundException
+from elyx.exceptions import BindingResolutionException, EntryNotFoundException
 from test.base_test import BaseTest
 
 
@@ -91,6 +91,26 @@ class ContainerBindScopedTestInterface(ABC):
 class ContainerBindScopedTestImplementation(ContainerBindScopedTestInterface):
     def get_value(self):
         pass
+
+
+class OverrideInterface(ABC):
+    pass
+
+
+class OriginalConcrete(OverrideInterface):
+    pass
+
+
+class AltConcrete(OverrideInterface):
+    pass
+
+
+class ProdEnvOnlyInterface(ABC):
+    pass
+
+
+class ProdEnvOnlyImplementation(ProdEnvOnlyInterface):
+    pass
 
 
 class TestContainer(BaseTest):
@@ -658,7 +678,6 @@ class TestContainer(BaseTest):
         second_instantiation = container.get(ContainerSingletonAttribute)
         assert first_instantiation is second_instantiation
 
-
     def test_bind_interface_to_singleton(self):
         """Test binding an interface to a singleton implementation."""
         container = self.container
@@ -686,3 +705,22 @@ class TestContainer(BaseTest):
         container.forget_scoped_instances()
         instance4 = container.get(ContainerBindScopedTestInterface)
         assert instance1 is not instance4
+
+    def test_container_bindings_take_precedence(self):
+        """Test that subsequent container bindings override previous ones."""
+        container = self.container
+        container.bind(OverrideInterface, OriginalConcrete)
+        container.bind(OverrideInterface, AltConcrete)
+        instance = container.make(OverrideInterface)
+        assert isinstance(instance, AltConcrete)
+
+    def test_no_matching_environment_and_no_wildcard_throws_exception(self):
+        """Test that an exception is thrown if no binding matches the environment and no wildcard exists."""
+        container = self.container
+        container.bind(ProdEnvOnlyInterface, ProdEnvOnlyImplementation, env="prod")
+        container.resolve_environment_using(lambda envs: False)
+
+        with pytest.raises(BindingResolutionException) as exc_info:
+            container.make(ProdEnvOnlyInterface)
+
+        assert "is not instantiable in the current environment" in str(exc_info.value)

@@ -40,6 +40,7 @@ class Container(ContainerInterface):
         abstract,
         concrete=None,
         shared: bool = False,
+        env: str | list[str] | None = None,
     ) -> None:
         """
         Register a binding with the container.
@@ -48,6 +49,7 @@ class Container(ContainerInterface):
             abstract: Abstract type identifier or closure.
             concrete: Concrete implementation or closure.
             shared: Whether the binding should be shared (singleton).
+            env: The environment(s) for which the binding is active.
         """
         pass
 
