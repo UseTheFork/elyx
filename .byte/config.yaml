@@ -24,8 +24,33 @@ files:
   - node_modules
   - dist
 lint:
-  enable: false
-  commands: []
+    enable: true
+    commands:
+        - command: 
+          - uv
+          - run
+          - ssort
+          languages: ['python']
+        - command:
+          - uv
+          - run
+          - ruff
+          - format
+          - --force-exclude
+          - --respect-gitignore
+          languages:
+          - python
+        - command:
+          - uv
+          - run
+          - ruff
+          - check
+          - --fix
+          - --force-exclude
+          languages:
+          - python
+        - command: ['keep-sorted']
+          languages: ['*']
 llm:
   model: gemini
   gemini:
@@ -62,3 +87,4 @@ system:
 web:
   enable: true
   chrome_binary_location: /etc/profiles/per-user/sincore/bin/google-chrome-stable
+

@@ -54,6 +54,20 @@ class Container(ContainerContract):
             cls._instance = cls()
         return cls._instance
 
+    def _normalize_abstract(self, abstract: str | type[T]) -> str:
+        """
+        Normalize abstract type to string representation.
+
+        Args:
+            abstract: Abstract type identifier or class.
+
+        Returns:
+            String representation of the abstract type.
+        """
+        if isinstance(abstract, type):
+            return f"{abstract.__module__}.{abstract.__qualname__}"
+        return abstract
+
     def bound(self, abstract) -> bool:
         """
         Determine if the given abstract type has been bound.
@@ -134,64 +148,6 @@ class Container(ContainerContract):
             Resolved instance.
         """
         return self.resolve(abstract, **kwargs)
-
-    def resolve(self, abstract, raise_events=True, **kwargs) -> T | Any:
-        """
-        Resolve the given type from the container.
-
-        Args:
-            abstract: Abstract type identifier or class.
-            **kwargs: Parameters to pass to the constructor.
-
-        Returns:
-            Resolved instance.
-        """
-        original_abstract = abstract
-        abstract_str = self._normalize_abstract(abstract)
-        abstract_str = self.get_alias(abstract_str)
-
-        if raise_events:
-            self._fire_before_resolving_callbacks(abstract_str, **kwargs)
-
-        # If an instance already exists and we're not passing parameters, return it.
-        if not kwargs and abstract_str in self._scoped_instances:
-            return self._scoped_instances[abstract_str]
-
-        if not kwargs and abstract_str in self._instances:
-            return self._instances[abstract_str]
-
-        binding = self._bindings.get(abstract_str)
-
-        # If we don't have a binding, we'll attempt to auto-wire the class.
-        if not binding:
-            if isinstance(original_abstract, type):
-                concrete = original_abstract
-            else:
-                raise EntryNotFoundException(abstract_str)
-        else:
-            concrete = binding["concrete"]
-
-        # We're ready to build an instance of the concrete implementation.
-        if callable(concrete):
-            instance = self._build(concrete, **kwargs)
-        else:
-            instance = concrete
-
-        # If the binding is scoped, cache the instance so it can be reused within the same scope.
-        if not kwargs and self.is_scoped(abstract_str):
-            self._scoped_instances[abstract_str] = instance
-
-        # If the binding is shared and we're not passing parameters, cache the instance.
-        if not kwargs and self.is_shared(abstract_str):
-            self._instances[abstract_str] = instance
-
-        self._resolved[abstract_str] = True
-
-        # Fire after resolving callbacks
-        if raise_events:
-            self._fire_after_resolving_callbacks(abstract_str, instance)
-
-        return instance
 
     def _build(self, concrete: Callable, **kwargs) -> Any:
         """Build an instance of the given type with dependency injection."""
@@ -275,6 +231,110 @@ class Container(ContainerContract):
 
         return concrete(**dependencies)
 
+    def _fire_callback_array(self, callbacks: list, *args) -> None:
+        """
+        Fire an array of callbacks with the given arguments.
+
+        Args:
+            callbacks: List of callbacks to execute.
+            *args: Arguments to pass to each callback.
+
+        Returns:
+            None
+        """
+        for callback in callbacks:
+            callback(*args)
+
+    def _fire_after_resolving_callbacks(self, abstract: str, instance: Any) -> None:
+        """
+        Fire all after resolving callbacks for the given abstract type.
+
+        Args:
+            abstract: Abstract type identifier.
+            instance: The resolved instance.
+
+        Returns:
+            None
+        """
+        self._fire_callback_array(self._global_after_resolving_callbacks, instance, self)
+
+        if abstract in self._after_resolving_callbacks:
+            self._fire_callback_array(self._after_resolving_callbacks[abstract], instance, self)
+
+    def _fire_before_resolving_callbacks(self, abstract: str, **kwargs) -> None:
+        """
+        Fire all of the before resolving callbacks.
+
+        Args:
+            abstract: Abstract type identifier.
+            **kwargs: Parameters being passed to the constructor.
+
+        Returns:
+            None
+        """
+        self._fire_callback_array(self._global_before_resolving_callbacks, abstract, kwargs, self)
+
+        if abstract in self._before_resolving_callbacks:
+            self._fire_callback_array(self._before_resolving_callbacks[abstract], abstract, kwargs, self)
+
+    def resolve(self, abstract, raise_events=True, **kwargs) -> T | Any:
+        """
+        Resolve the given type from the container.
+
+        Args:
+            abstract: Abstract type identifier or class.
+            **kwargs: Parameters to pass to the constructor.
+
+        Returns:
+            Resolved instance.
+        """
+        original_abstract = abstract
+        abstract_str = self._normalize_abstract(abstract)
+        abstract_str = self.get_alias(abstract_str)
+
+        if raise_events:
+            self._fire_before_resolving_callbacks(abstract_str, **kwargs)
+
+        # If an instance already exists and we're not passing parameters, return it.
+        if not kwargs and abstract_str in self._scoped_instances:
+            return self._scoped_instances[abstract_str]
+
+        if not kwargs and abstract_str in self._instances:
+            return self._instances[abstract_str]
+
+        binding = self._bindings.get(abstract_str)
+
+        # If we don't have a binding, we'll attempt to auto-wire the class.
+        if not binding:
+            if isinstance(original_abstract, type):
+                concrete = original_abstract
+            else:
+                raise EntryNotFoundException(abstract_str)
+        else:
+            concrete = binding["concrete"]
+
+        # We're ready to build an instance of the concrete implementation.
+        if callable(concrete):
+            instance = self._build(concrete, **kwargs)
+        else:
+            instance = concrete
+
+        # If the binding is scoped, cache the instance so it can be reused within the same scope.
+        if not kwargs and self.is_scoped(abstract_str):
+            self._scoped_instances[abstract_str] = instance
+
+        # If the binding is shared and we're not passing parameters, cache the instance.
+        if not kwargs and self.is_shared(abstract_str):
+            self._instances[abstract_str] = instance
+
+        self._resolved[abstract_str] = True
+
+        # Fire after resolving callbacks
+        if raise_events:
+            self._fire_after_resolving_callbacks(abstract_str, instance)
+
+        return instance
+
     def _drop_stale_instances(self, abstract: str) -> None:
         """
         Drop all of the stale instances and aliases.
@@ -290,23 +350,6 @@ class Container(ContainerContract):
 
         if abstract in self._aliases:
             del self._aliases[abstract]
-
-    def _bind_based_on_closure_return_types(
-        self, abstract: Callable, concrete: Callable | None = None, shared: bool = False, scoped: bool = False
-    ) -> None:
-        """
-        Register a binding with the container based on the given closure's return types.
-
-        Args:
-            abstract: The factory closure.
-            concrete: The concrete implementation (defaults to the abstract closure).
-            shared: Whether the binding should be a singleton.
-        """
-        if concrete is None:
-            concrete = abstract
-
-        for return_type in self._get_closure_return_types(abstract):
-            self.bind(return_type, concrete, shared, scoped=scoped)
 
     def _get_closure_return_types(self, closure: Callable) -> list[type]:
         """
@@ -344,6 +387,23 @@ class Container(ContainerContract):
                 concrete_types.append(t)
 
         return concrete_types
+
+    def _bind_based_on_closure_return_types(
+        self, abstract: Callable, concrete: Callable | None = None, shared: bool = False, scoped: bool = False
+    ) -> None:
+        """
+        Register a binding with the container based on the given closure's return types.
+
+        Args:
+            abstract: The factory closure.
+            concrete: The concrete implementation (defaults to the abstract closure).
+            shared: Whether the binding should be a singleton.
+        """
+        if concrete is None:
+            concrete = abstract
+
+        for return_type in self._get_closure_return_types(abstract):
+            self.bind(return_type, concrete, shared, scoped=scoped)
 
     def bind(
         self,
@@ -561,47 +621,6 @@ class Container(ContainerContract):
         result = callback(**parameters)
         return result
 
-    def __contains__(self, key: str) -> bool:
-        """Determine if a given type is bound in the container."""
-        return self.bound(key)
-
-    def __getitem__(self, key: str) -> Any:
-        """Resolve an item from the container by key."""
-        return self.make(key)
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        """Register a binding or instance with the container."""
-        # If the value is a closure, we'll bind it as a factory.
-        # Otherwise, we'll register it as a concrete instance.
-        if callable(value) and not inspect.isclass(value):
-            self.bind(key, value)
-        else:
-            self.instance(key, value)
-
-    def __delitem__(self, key: str) -> None:
-        """Remove a binding from the container."""
-        key_str = self._normalize_abstract(key)
-        if key_str in self._bindings:
-            del self._bindings[key_str]
-        if key_str in self._instances:
-            del self._instances[key_str]
-        if key_str in self._resolved:
-            del self._resolved[key_str]
-
-    def _normalize_abstract(self, abstract: str | type[T]) -> str:
-        """
-        Normalize abstract type to string representation.
-
-        Args:
-            abstract: Abstract type identifier or class.
-
-        Returns:
-            String representation of the abstract type.
-        """
-        if isinstance(abstract, type):
-            return f"{abstract.__module__}.{abstract.__qualname__}"
-        return abstract
-
     def after_resolving(self, abstract, callback: Callable | None = None) -> None:
         """
         Register a new after resolving callback for all types.
@@ -628,52 +647,6 @@ class Container(ContainerContract):
             if abstract_str not in self._after_resolving_callbacks:
                 self._after_resolving_callbacks[abstract_str] = []
             self._after_resolving_callbacks[abstract_str].append(callback)
-
-    def _fire_callback_array(self, callbacks: list, *args) -> None:
-        """
-        Fire an array of callbacks with the given arguments.
-
-        Args:
-            callbacks: List of callbacks to execute.
-            *args: Arguments to pass to each callback.
-
-        Returns:
-            None
-        """
-        for callback in callbacks:
-            callback(*args)
-
-    def _fire_after_resolving_callbacks(self, abstract: str, instance: Any) -> None:
-        """
-        Fire all after resolving callbacks for the given abstract type.
-
-        Args:
-            abstract: Abstract type identifier.
-            instance: The resolved instance.
-
-        Returns:
-            None
-        """
-        self._fire_callback_array(self._global_after_resolving_callbacks, instance, self)
-
-        if abstract in self._after_resolving_callbacks:
-            self._fire_callback_array(self._after_resolving_callbacks[abstract], instance, self)
-
-    def _fire_before_resolving_callbacks(self, abstract: str, **kwargs) -> None:
-        """
-        Fire all of the before resolving callbacks.
-
-        Args:
-            abstract: Abstract type identifier.
-            **kwargs: Parameters being passed to the constructor.
-
-        Returns:
-            None
-        """
-        self._fire_callback_array(self._global_before_resolving_callbacks, abstract, kwargs, self)
-
-        if abstract in self._before_resolving_callbacks:
-            self._fire_callback_array(self._before_resolving_callbacks[abstract], abstract, kwargs, self)
 
     def factory(self, abstract) -> Callable:
         """
@@ -757,3 +730,30 @@ class Container(ContainerContract):
             return False
 
         return self.environment_resolver(environments)
+
+    def __getitem__(self, key: str) -> Any:
+        """Resolve an item from the container by key."""
+        return self.make(key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        """Register a binding or instance with the container."""
+        # If the value is a closure, we'll bind it as a factory.
+        # Otherwise, we'll register it as a concrete instance.
+        if callable(value) and not inspect.isclass(value):
+            self.bind(key, value)
+        else:
+            self.instance(key, value)
+
+    def __delitem__(self, key: str) -> None:
+        """Remove a binding from the container."""
+        key_str = self._normalize_abstract(key)
+        if key_str in self._bindings:
+            del self._bindings[key_str]
+        if key_str in self._instances:
+            del self._instances[key_str]
+        if key_str in self._resolved:
+            del self._resolved[key_str]
+
+    def __contains__(self, key: str) -> bool:
+        """Determine if a given type is bound in the container."""
+        return self.bound(key)
