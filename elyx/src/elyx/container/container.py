@@ -24,8 +24,11 @@ class Container(ContainerContract):
         self._scoped_instances = {}
         self._global_before_resolving_callbacks = []
         self._before_resolving_callbacks = {}
+        self._global_resolving_callbacks = []
+        self._resolving_callbacks = {}
         self._global_after_resolving_callbacks = []
         self._after_resolving_callbacks = {}
+        self._rebinding_callbacks = {}
         self.environment_resolver = None
 
     @classmethod
@@ -86,7 +89,7 @@ class Container(ContainerContract):
             or self.is_alias(abstract_str)
         )
 
-    def has(self, id: str) -> bool:
+    def has(self, id: str | T) -> bool:
         """
         Returns true if the container can return an entry for the given identifier.
 
@@ -98,7 +101,7 @@ class Container(ContainerContract):
         """
         return self.bound(id)
 
-    def get(self, id: str) -> T | Any:
+    def get(self, id: str | T) -> T | Any:
         """
         Finds an entry of the container by its identifier and returns it.
 
@@ -245,6 +248,30 @@ class Container(ContainerContract):
         for callback in callbacks:
             callback(*args)
 
+    def _fire_resolving_callbacks(self, abstract: str, instance: Any) -> None:
+        """
+        Fire all resolving callbacks for the given abstract type.
+
+        Args:
+            abstract: Abstract type identifier.
+            instance: The resolved instance.
+
+        Returns:
+            None
+        """
+        self._fire_callback_array(self._global_resolving_callbacks, instance, self)
+
+        if abstract in self._resolving_callbacks:
+            self._fire_callback_array(self._resolving_callbacks[abstract], instance, self)
+
+        # Fire callbacks for the concrete class and parent classes/interfaces
+        if hasattr(instance, "__class__"):
+            for base in instance.__class__.__mro__:
+                base_str = self._normalize_abstract(base)
+                # Skip if we already fired for this abstract
+                if base_str != abstract and base_str in self._resolving_callbacks:
+                    self._fire_callback_array(self._resolving_callbacks[base_str], instance, self)
+
     def _fire_after_resolving_callbacks(self, abstract: str, instance: Any) -> None:
         """
         Fire all after resolving callbacks for the given abstract type.
@@ -260,6 +287,19 @@ class Container(ContainerContract):
 
         if abstract in self._after_resolving_callbacks:
             self._fire_callback_array(self._after_resolving_callbacks[abstract], instance, self)
+
+    def _fire_rebinding_callbacks(self, abstract: str) -> None:
+        """
+        Fire all rebinding callbacks for the given abstract type.
+
+        Args:
+            abstract: Abstract type identifier.
+
+        Returns:
+            None
+        """
+        if abstract in self._rebinding_callbacks:
+            self._fire_callback_array(self._rebinding_callbacks[abstract], abstract, self)
 
     def _fire_before_resolving_callbacks(self, abstract: str, **kwargs) -> None:
         """
@@ -328,6 +368,10 @@ class Container(ContainerContract):
             self._instances[abstract_str] = instance
 
         self._resolved[abstract_str] = True
+
+        # Fire resolving callbacks
+        if raise_events:
+            self._fire_resolving_callbacks(abstract_str, instance)
 
         # Fire after resolving callbacks
         if raise_events:
@@ -432,7 +476,17 @@ class Container(ContainerContract):
         if concrete is None:
             concrete = abstract
 
+        # Check if this is a rebinding
+        needs_rebinding = abstract_str in self._bindings
+
         self._bindings[abstract_str] = {"concrete": concrete, "shared": shared, "scoped": scoped}
+
+        # Fire rebinding callbacks if this was a rebind
+        if needs_rebinding and abstract_str in self._rebinding_callbacks:
+            self._fire_rebinding_callbacks(abstract_str)
+            # Resolve the new binding and fire resolving callbacks
+            instance = self.resolve(abstract_str, raise_events=False)
+            self._fire_resolving_callbacks(abstract_str, instance)
 
     def bind_if(
         self,
@@ -621,6 +675,60 @@ class Container(ContainerContract):
         result = callback(**parameters)
         return result
 
+    def before_resolving(self, abstract, callback: Callable | None = None) -> None:
+        """
+        Register a new before resolving callback.
+
+        Args:
+            abstract: Abstract type identifier or closure.
+            callback: Callback to execute before resolving.
+
+        Returns:
+            None
+        """
+        # If abstract is a callable and no callback provided, it's a global callback
+        if callable(abstract) and callback is None:
+            self._global_before_resolving_callbacks.append(abstract)
+        else:
+            # Normalize abstract to string and resolve aliases
+            if isinstance(abstract, str) or isinstance(abstract, type):
+                abstract_str = self._normalize_abstract(abstract)
+                abstract_str = self.get_alias(abstract_str)
+            else:
+                abstract_str = self._normalize_abstract(abstract)
+
+            # Store callback for specific abstract type
+            if abstract_str not in self._before_resolving_callbacks:
+                self._before_resolving_callbacks[abstract_str] = []
+            self._before_resolving_callbacks[abstract_str].append(callback)
+
+    def resolving(self, abstract, callback: Callable | None = None) -> None:
+        """
+        Register a new resolving callback.
+
+        Args:
+            abstract: Abstract type identifier or closure.
+            callback: Callback to execute during resolving.
+
+        Returns:
+            None
+        """
+        # If abstract is a callable and no callback provided, it's a global callback
+        if callable(abstract) and callback is None:
+            self._global_resolving_callbacks.append(abstract)
+        else:
+            # Normalize abstract to string and resolve aliases
+            if isinstance(abstract, str) or isinstance(abstract, type):
+                abstract_str = self._normalize_abstract(abstract)
+                abstract_str = self.get_alias(abstract_str)
+            else:
+                abstract_str = self._normalize_abstract(abstract)
+
+            # Store callback for specific abstract type
+            if abstract_str not in self._resolving_callbacks:
+                self._resolving_callbacks[abstract_str] = []
+            self._resolving_callbacks[abstract_str].append(callback)
+
     def after_resolving(self, abstract, callback: Callable | None = None) -> None:
         """
         Register a new after resolving callback for all types.
@@ -647,6 +755,24 @@ class Container(ContainerContract):
             if abstract_str not in self._after_resolving_callbacks:
                 self._after_resolving_callbacks[abstract_str] = []
             self._after_resolving_callbacks[abstract_str].append(callback)
+
+    def rebinding(self, abstract, callback: Callable) -> None:
+        """
+        Register a rebinding callback for the given abstract type.
+
+        Args:
+            abstract: Abstract type identifier.
+            callback: Callback to execute when rebinding occurs.
+
+        Returns:
+            None
+        """
+        abstract_str = self._normalize_abstract(abstract)
+        abstract_str = self.get_alias(abstract_str)
+
+        if abstract_str not in self._rebinding_callbacks:
+            self._rebinding_callbacks[abstract_str] = []
+        self._rebinding_callbacks[abstract_str].append(callback)
 
     def factory(self, abstract) -> Callable:
         """

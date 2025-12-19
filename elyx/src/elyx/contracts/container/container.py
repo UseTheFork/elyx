@@ -244,38 +244,49 @@ class Container(ContainerInterface):
         """
         pass
 
-    # @abstractmethod
-    # def before_resolving(self, abstract: str | type[T] | Callable, callback: Callable | None = None) -> None:
-    #     """
-    #     Register a new before resolving callback.
+    @abstractmethod
+    def before_resolving(self, abstract: str | type[T] | Callable, callback: Callable | None = None) -> None:
+        """
+        Register a new before resolving callback.
 
-    #     Args:
-    #         abstract: Abstract type identifier or closure.
-    #         callback: Callback to execute before resolving.
-    #     """
-    #     pass
+        Args:
+            abstract: Abstract type identifier or closure.
+            callback: Callback to execute before resolving.
+        """
+        pass
 
-    # @abstractmethod
-    # def resolving(self, abstract: str | type[T] | Callable, callback: Callable | None = None) -> None:
-    #     """
-    #     Register a new resolving callback.
+    @abstractmethod
+    def resolving(self, abstract: str | type[T] | Callable, callback: Callable | None = None) -> None:
+        """
+        Register a new resolving callback.
 
-    #     Args:
-    #         abstract: Abstract type identifier or closure.
-    #         callback: Callback to execute during resolving.
-    #     """
-    #     pass
+        Args:
+            abstract: Abstract type identifier or closure.
+            callback: Callback to execute during resolving.
+        """
+        pass
 
-    # @abstractmethod
-    # def after_resolving(self, abstract: str | type[T] | Callable, callback: Callable | None = None) -> None:
-    #     """
-    #     Register a new after resolving callback.
+    @abstractmethod
+    def after_resolving(self, abstract: str | type[T] | Callable, callback: Callable | None = None) -> None:
+        """
+        Register a new after resolving callback.
 
-    #     Args:
-    #         abstract: Abstract type identifier or closure.
-    #         callback: Callback to execute after resolving.
-    #     """
-    #     pass
+        Args:
+            abstract: Abstract type identifier or closure.
+            callback: Callback to execute after resolving.
+        """
+        pass
+
+    @abstractmethod
+    def rebinding(self, abstract: str | type[T], callback: Callable) -> None:
+        """
+        Register a rebinding callback for the given abstract type.
+
+        Args:
+            abstract: Abstract type identifier.
+            callback: Callback to execute when rebinding occurs.
+        """
+        pass
 
     @abstractmethod
     def resolve_environment_using(self, callback: Optional[Callable]) -> None:

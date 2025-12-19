@@ -52,7 +52,7 @@ lint:
         - command: ['keep-sorted']
           languages: ['*']
 llm:
-  model: gemini
+  model: anthropic
   gemini:
     enable: false
     model_params: {}
@@ -80,7 +80,6 @@ presets:
   conventions:
   - COMMENT_STANDARDS.md
   - PROJECT_ARCHITECTURE.md
-  prompt: None
   load_on_boot: false
 system:
   paths: {}
