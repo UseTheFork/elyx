@@ -1,5 +1,6 @@
-from typing import Callable
+from typing import Any, Callable
 
+from elyx.collections.collection import Collection
 from elyx.support.concerns.array_store import ArrayStore
 
 
@@ -81,3 +82,66 @@ class Repository(ArrayStore):
         if not isinstance(value, bool):
             raise ValueError(f"Configuration value for key [{key}] must be a boolean, {type(value).__name__} given.")
         return value
+
+    def array(self, key: str, default: Callable[[], list | None] | list | None = None) -> list:
+        """
+        Get the specified array configuration value.
+
+        Args:
+            key: Configuration key.
+            default: Default value or callable returning default.
+
+        Returns:
+            Array configuration value.
+
+        Raises:
+            ValueError: If the value is not an array.
+        """
+        value = self.get(key, default)
+        if not isinstance(value, list):
+            raise ValueError(f"Configuration value for key [{key}] must be an array, {type(value).__name__} given.")
+        return value
+
+    def prepend(self, key: str, value: Any) -> None:
+        """
+        Prepend a value onto an array configuration value.
+
+        Args:
+            key: Configuration key.
+            value: Value to prepend.
+
+        Returns:
+            None
+        """
+        array = self.get(key, [])
+        array.insert(0, value)
+        self.add(key, array)
+
+    def push(self, key: str, value: Any) -> None:
+        """
+        Push a value onto an array configuration value.
+
+        Args:
+            key: Configuration key.
+            value: Value to push.
+
+        Returns:
+            None
+        """
+        array = self.get(key, [])
+        array.append(value)
+        self.add(key, array)
+
+    def collection(self, key: str, default: Callable[[], list | None] | list | None = None):
+        """
+        Get the specified array configuration value as a collection.
+
+        Args:
+            key: Configuration key.
+            default: Default value or callable returning default.
+
+        Returns:
+            Collection instance containing the array values.
+        """
+
+        return Collection(self.array(key, default))

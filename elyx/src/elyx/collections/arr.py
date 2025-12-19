@@ -36,6 +36,41 @@ class Arr:
         return False
 
     @staticmethod
+    def has(array: dict | list, key: str | int) -> bool:
+        """
+        Determine if the given key exists in the provided array using "dot" notation.
+
+        Args:
+            array: Array/dict to check.
+            key: Key in dot notation (e.g., 'app.name').
+
+        Returns:
+            True if key exists, False otherwise.
+        """
+        if not Arr.accessible(array):
+            return False
+
+        if key is None:
+            return False
+
+        if Arr.exists(array, key):
+            return True
+
+        if not isinstance(key, str) or "." not in key:
+            return False
+
+        for segment in key.split("."):
+            if Arr.accessible(array) and Arr.exists(array, segment):
+                if isinstance(array, dict):
+                    array = array[segment]
+                elif isinstance(array, list) and isinstance(segment, int):
+                    array = array[segment]
+            else:
+                return False
+
+        return True
+
+    @staticmethod
     def get(array: dict | list | Any, key: str | int | None = None, default: Any = None) -> Any:
         """
         Get an item from an array using "dot" notation.
@@ -69,6 +104,10 @@ class Arr:
             return value(default)
 
         for segment in key.split("."):
+            # Try to convert segment to int for list access
+            if segment.isdigit():
+                segment = int(segment)
+
             if Arr.accessible(array) and Arr.exists(array, segment):
                 if isinstance(array, dict):
                     array = array[segment]

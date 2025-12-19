@@ -35,7 +35,6 @@ class Collection(CollectionContract):
             return list(items)
         return [items]
 
-
     def __getitem__(self, key: Any) -> Any:
         """Get an item at a given offset."""
         return self._items[key]

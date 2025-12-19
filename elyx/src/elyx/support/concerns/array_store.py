@@ -20,8 +20,25 @@ class ArrayStore(ArrayStoreContract):
         """Retrieve all the items."""
         return self._data
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Retrieve a single item, supporting dot notation for nested access."""
+    def has(self, key: str) -> bool:
+        """Determine if an item exists in the store."""
+        return Arr.has(self._data, key)
+
+    def get(self, key: str | list | dict, default: Any = None) -> Any:
+        """
+        Retrieve a single item or multiple items, supporting dot notation for nested access.
+
+        Args:
+            key: Key string, list of keys, or dict of keys with defaults.
+            default: Default value if key not found (only used for string keys).
+
+        Returns:
+            Single value, or dict of key-value pairs if key is list/dict.
+        """
+        if isinstance(key, list):
+            return {k: Arr.get(self._data, k) for k in key}
+        elif isinstance(key, dict):
+            return {k: Arr.get(self._data, k, v) for k, v in key.items()}
         return Arr.get(self._data, key, default)
 
     def set(self, data: dict[str, Any]) -> "ArrayStore":
@@ -68,6 +85,10 @@ class ArrayStore(ArrayStoreContract):
         """Delete an item using dictionary syntax."""
         self.remove(key)
 
+    def __iter__(self):
+        """Iterate over the keys in the store."""
+        return iter(self._data)
+
     def __contains__(self, key: str) -> bool:
         """Check if a key exists using 'in' operator."""
         return key in self._data
@@ -75,7 +96,3 @@ class ArrayStore(ArrayStoreContract):
     def __len__(self) -> int:
         """Get the number of items in the store."""
         return len(self._data)
-
-    def __iter__(self):
-        """Iterate over the keys in the store."""
-        return iter(self._data)
