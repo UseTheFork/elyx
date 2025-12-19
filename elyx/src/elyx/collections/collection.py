@@ -6,15 +6,6 @@ from elyx.contracts.collections.collection import Collection as CollectionContra
 class Collection(CollectionContract):
     """Collection class for managing items."""
 
-    def __init__(self, items: Iterable[Any] | None = None):
-        """
-        Create a new collection.
-
-        Args:
-            items: Initial items for the collection.
-        """
-        self._items: list[Any] = self._get_arrayable_items(items)
-
     def _get_arrayable_items(self, items: Iterable[Any] | None) -> list[Any]:
         """
         Convert items to a list.
@@ -35,29 +26,14 @@ class Collection(CollectionContract):
             return list(items)
         return [items]
 
-    def __getitem__(self, key: Any) -> Any:
-        """Get an item at a given offset."""
-        return self._items[key]
+    def __init__(self, items: Iterable[Any] | None = None):
+        """
+        Create a new collection.
 
-    def __setitem__(self, key: Any, value: Any) -> None:
-        """Set an item at a given offset."""
-        self._items[key] = value
-
-    def __delitem__(self, key: Any) -> None:
-        """Unset an item at a given offset."""
-        del self._items[key]
-
-    def __contains__(self, key: Any) -> bool:
-        """Determine if an item exists at an offset."""
-        return key in self._items
-
-    def __iter__(self) -> Any:
-        """Get an iterator for the items."""
-        return iter(self._items)
-
-    def __len__(self) -> int:
-        """Count the number of items in the collection."""
-        return len(self._items)
+        Args:
+            items: Initial items for the collection.
+        """
+        self._items: list[Any] = self._get_arrayable_items(items)
 
     def all(self) -> list[Any]:
         """Get all of the items in the collection."""
@@ -116,3 +92,27 @@ class Collection(CollectionContract):
     def to_array(self) -> list[Any]:
         """Get the collection as a plain list."""
         return self._items
+
+    def __getitem__(self, key: Any) -> Any:
+        """Get an item at a given offset."""
+        return self._items[key]
+
+    def __setitem__(self, key: Any, value: Any) -> None:
+        """Set an item at a given offset."""
+        self._items[key] = value
+
+    def __delitem__(self, key: Any) -> None:
+        """Unset an item at a given offset."""
+        del self._items[key]
+
+    def __iter__(self) -> Any:
+        """Get an iterator for the items."""
+        return iter(self._items)
+
+    def __contains__(self, key: Any) -> bool:
+        """Determine if an item exists at an offset."""
+        return key in self._items
+
+    def __len__(self) -> int:
+        """Count the number of items in the collection."""
+        return len(self._items)
