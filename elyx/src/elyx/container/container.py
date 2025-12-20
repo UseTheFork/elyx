@@ -4,6 +4,7 @@ from typing import Any, Callable, Optional, TypeVar, Union, get_args, get_origin
 
 from elyx.contracts.container.container import Container as ContainerContract
 from elyx.exceptions import EntryNotFoundException
+from elyx.support.str import Str
 
 T = TypeVar("T")
 
@@ -57,7 +58,7 @@ class Container(ContainerContract):
             cls._instance = cls()
         return cls._instance
 
-    def _normalize_abstract(self, abstract: str | type[T]) -> str:
+    def _normalize_abstract(self, abstract) -> str:
         """
         Normalize abstract type to string representation.
 
@@ -67,9 +68,7 @@ class Container(ContainerContract):
         Returns:
             String representation of the abstract type.
         """
-        if isinstance(abstract, type):
-            return f"{abstract.__module__}.{abstract.__qualname__}"
-        return abstract
+        return Str.class_to_string(abstract)
 
     def bound(self, abstract) -> bool:
         """

@@ -1,4 +1,3 @@
-
 from abc import ABC, abstractmethod
 from typing import Any, Callable
 
@@ -7,7 +6,7 @@ class Dispatcher(ABC):
     """Event dispatcher contract."""
 
     @abstractmethod
-    async def listen(self, events: str | list[str] | Callable, listener: str | Callable | None = None) -> None:
+    def listen(self, events: str | list[str] | Callable, listener: str | Callable | None = None) -> None:
         """
         Register an event listener with the dispatcher.
 

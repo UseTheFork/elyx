@@ -5,13 +5,13 @@ class ServiceProvider(ABC):
     """Base contract for service providers."""
 
     @abstractmethod
-    async def register(self) -> None:
+    def register(self) -> None:
         """
         Register services in the container.
         """
         pass
 
-    async def boot(self) -> None:
+    def boot(self) -> None:
         """
         Bootstrap services (called after all providers are registered).
         """
