@@ -373,3 +373,91 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher.listen("update", third_listener)
         assert test_storage["event_result"] == "value_value"
+
+    async def test_queued_events_can_be_forgotten(self):
+        """Test that queued events can be forgotten."""
+        from elyx.events.dispatcher import Dispatcher
+
+        # Create a test storage dict to simulate state
+        test_storage = {"event_test": "unset"}
+
+        dispatcher = Dispatcher(self.container)
+
+        def listener(event, payload):
+            test_storage["event_test"] = payload
+
+        dispatcher.push("update", ["taylor"])
+        dispatcher.listen("update", listener)
+
+        dispatcher.forget_pushed()
+        await dispatcher.flush("update")
+
+        assert test_storage["event_test"] == "unset"
+
+    async def test_multiple_pushed_events_will_get_flushed(self):
+        """Test that multiple pushed events will get flushed."""
+        from elyx.events.dispatcher import Dispatcher
+
+        # Create a test storage dict to simulate state
+        test_storage = {"event_test": ""}
+
+        dispatcher = Dispatcher(self.container)
+
+        def listener(event, payload):
+            test_storage["event_test"] += payload
+
+        dispatcher.push("update", ["hello "])
+        dispatcher.push("update", ["world"])
+        dispatcher.listen("update", listener)
+
+        await dispatcher.flush("update")
+
+        assert test_storage["event_test"] == "hello world"
+
+    async def test_push_method_can_accept_object_as_payload(self):
+        """Test that push method can accept an object as payload."""
+        from elyx.events.dispatcher import Dispatcher
+
+        # Create a test storage dict to simulate state
+        test_storage = {}
+
+        dispatcher = Dispatcher(self.container)
+
+        event_instance = DeferTestEvent()
+
+        def listener(event, payload):
+            test_storage["event_test"] = payload
+
+        dispatcher.push(DeferTestEvent, event_instance)
+        dispatcher.listen(DeferTestEvent, listener)
+
+        await dispatcher.flush(DeferTestEvent)
+
+        assert test_storage["event_test"] is event_instance
+
+    async def test_wildcard_listeners(self):
+        """Test that wildcard listeners are called for matching events."""
+        from elyx.events.dispatcher import Dispatcher
+
+        # Create a test storage dict to simulate state
+        test_storage = {}
+
+        dispatcher = Dispatcher(self.container)
+
+        def regular_listener(event, payload):
+            test_storage["event_test"] = "regular"
+
+        def wildcard_listener(event, payload):
+            test_storage["event_test"] = "wildcard"
+
+        def nope_listener(event, payload):
+            test_storage["event_test"] = "nope"
+
+        dispatcher.listen("foo.bar", regular_listener)
+        dispatcher.listen("foo.*", wildcard_listener)
+        dispatcher.listen("bar.*", nope_listener)
+
+        response = await dispatcher.dispatch("foo.bar")
+
+        assert response == [None, None]
+        assert test_storage["event_test"] == "wildcard"

@@ -10,6 +10,11 @@ class ContainerConcreteStub:
     pass
 
 
+class ContainerConcreteStubWithMethod(ContainerConcreteStub):
+    def get_value(self):
+        return "foo"
+
+
 class IContainerContractStub(ABC):
     @abstractmethod
     def get_value(self):
@@ -713,6 +718,27 @@ class TestContainer(BaseTest):
         container.bind(OverrideInterface, AltConcrete)
         instance = container.make(OverrideInterface)
         assert isinstance(instance, AltConcrete)
+
+    def test_call_raises_exception_when_method_name_is_none(self):
+        """Test that call raises an exception when method_name cannot be determined."""
+
+        container = self.container
+        container.bind(ContainerConcreteStub, ContainerConcreteStub)
+
+        with pytest.raises(AttributeError) as exc_info:
+            container.call("container_test.ContainerConcreteStub", default_method=None)
+
+        assert "has no attribute '__invoke__'" in str(exc_info.value)
+
+    def test_call_with_class_and_method_string(self):
+        """Test that call can resolve and invoke a method using Class:method syntax."""
+
+        container = self.container
+        container.bind(ContainerConcreteStubWithMethod, ContainerConcreteStubWithMethod)
+
+        result = container.call("container_test.ContainerConcreteStubWithMethod:get_value")
+
+        assert result == "foo"
 
     # def test_no_matching_environment_and_no_wildcard_throws_exception(self):
     #     """Test that an exception is thrown if no binding matches the environment and no wildcard exists."""

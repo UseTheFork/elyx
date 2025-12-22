@@ -646,7 +646,7 @@ class Container(ContainerContract):
         default_method: str | None = None,
     ) -> Any:
         """
-        Call the given Closure / class@method and inject its dependencies.
+        Call the given Closure / class:method and inject its dependencies.
 
         Args:
             callback: Callable or string in format 'Class@method'.
@@ -660,15 +660,13 @@ class Container(ContainerContract):
         if parameters is None:
             parameters = {}
 
-        # Handle string format 'Class@method'
         if isinstance(callback, str):
-            if "@" in callback:
-                class_name, method_name = callback.split("@", 1)
-            else:
-                class_name = callback
-                method_name = default_method or "__invoke__"
+            class_name, method_name = Str.parse_callback(callback, default_method or "__invoke__")
 
             instance = self.make(class_name)
+            if method_name is None:
+                raise ValueError(f"No method specified for callback '{callback}' and no default method provided")
+
             callback = getattr(instance, method_name)
 
         result = callback(**parameters)

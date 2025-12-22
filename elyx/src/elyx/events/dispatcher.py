@@ -20,8 +20,8 @@ class Dispatcher(DispatcherContract):
         # The registered event listeners: {event_name: [listener1, listener2, ...]}
         self.listeners = {}
 
-        # The wildcard listeners: [(pattern, listener), ...]
-        self.wildcards = []
+        # The wildcard listeners: {pattern: [listener1, listener2, ...]}
+        self.wildcards = {}
 
         # Event deferring state
         self.deferring_events = False
@@ -69,6 +69,23 @@ class Dispatcher(DispatcherContract):
                 self.listeners[event] = []
             self.listeners[event].append(listener)
 
+    def _setup_wildcard_listen(self, event: str, listener) -> None:
+        """
+        Setup a wildcard listener callback.
+
+        Args:
+            event: The wildcard pattern (e.g., "order.*" or "*").
+            listener: Listener callable or class name.
+
+        Returns:
+            None
+        """
+        if event not in self.wildcards:
+            self.wildcards[event] = []
+        self.wildcards[event].append(listener)
+        # Clear wildcard cache when adding new wildcard listeners
+        # TODO: Implement wildcard cache optimization
+
     def has_listeners(self, event_name: str) -> bool:
         """
         Determine if a given event has listeners.
@@ -95,7 +112,7 @@ class Dispatcher(DispatcherContract):
             return self.container.make(subscriber)
         return subscriber
 
-    def push(self, event: str, payload: list[Any] | None = None) -> None:
+    def push(self, event, payload=None) -> None:
         """
         Register an event and payload to be fired later.
 
@@ -103,6 +120,8 @@ class Dispatcher(DispatcherContract):
             event: Event name.
             payload: Event payload.
         """
+
+        event = Str.class_to_string(event)
 
         async def dispatch_pushed(pushed_event, pushed_payload):
             # Unpack the payload if it's a list, otherwise pass as-is
@@ -132,13 +151,14 @@ class Dispatcher(DispatcherContract):
                         continue
                     self.listen(event, listener)
 
-    async def flush(self, event: str) -> None:
+    async def flush(self, event) -> None:
         """
         Flush a set of pushed events.
 
         Args:
             event: Event name.
         """
+        event = Str.class_to_string(event)
         await self.dispatch(f"{event}_pushed")
 
     def forget(self, event: str) -> None:
@@ -301,9 +321,9 @@ class Dispatcher(DispatcherContract):
             List of wildcard listeners that match.
         """
         wildcard_listeners = []
-        for pattern, listener in self.wildcards:
+        for pattern, listeners in self.wildcards.items():
             if self._matches_wildcard(event_name, pattern):
-                wildcard_listeners.append(listener)
+                wildcard_listeners.extend(listeners)
         return wildcard_listeners
 
     def get_listeners(self, event_name: str) -> list:
