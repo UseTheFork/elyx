@@ -83,6 +83,7 @@ presets:
   conventions:
   - COMMENT_STANDARDS.md
   - PROJECT_ARCHITECTURE.md
+  - CODE_PATTERNS.md
   load_on_boot: false
 - id: events
   read_only_files:
@@ -96,7 +97,7 @@ presets:
   conventions:
   - COMMENT_STANDARDS.md
   - PROJECT_ARCHITECTURE.md
-  prompt: None
+  - CODE_PATTERNS.md
   load_on_boot: false
 - id: default
   read_only_files:
@@ -107,7 +108,7 @@ presets:
   conventions:
   - COMMENT_STANDARDS.md
   - PROJECT_ARCHITECTURE.md
-  prompt: None
+  - CODE_PATTERNS.md
   load_on_boot: false
 system:
   paths: {}
