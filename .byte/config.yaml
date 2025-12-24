@@ -24,33 +24,36 @@ files:
   - node_modules
   - dist
 lint:
-    enable: true
-    commands:
-        - command: 
-          - uv
-          - run
-          - ssort
-          languages: ['python']
-        - command:
-          - uv
-          - run
-          - ruff
-          - format
-          - --force-exclude
-          - --respect-gitignore
-          languages:
-          - python
-        - command:
-          - uv
-          - run
-          - ruff
-          - check
-          - --fix
-          - --force-exclude
-          languages:
-          - python
-        - command: ['keep-sorted']
-          languages: ['*']
+  enable: true
+  commands:
+  - command:
+    - uv
+    - run
+    - ssort
+    languages:
+    - python
+  - command:
+    - uv
+    - run
+    - ruff
+    - format
+    - --force-exclude
+    - --respect-gitignore
+    languages:
+    - python
+  - command:
+    - uv
+    - run
+    - ruff
+    - check
+    - --fix
+    - --force-exclude
+    languages:
+    - python
+  - command:
+    - keep-sorted
+    languages:
+    - '*'
 llm:
   model: anthropic
   gemini:
@@ -81,9 +84,33 @@ presets:
   - COMMENT_STANDARDS.md
   - PROJECT_ARCHITECTURE.md
   load_on_boot: false
+- id: events
+  read_only_files:
+  - elyx/src/elyx/collections/**
+  - elyx/src/elyx/container/container.py
+  - elyx/src/elyx/contracts/container/container.py
+  - elyx/src/elyx/support/**
+  editable_files:
+  - elyx/src/elyx/contracts/events/dispatcher.py
+  - elyx/src/test/events/event_dispatcher_test.py
+  conventions:
+  - COMMENT_STANDARDS.md
+  - PROJECT_ARCHITECTURE.md
+  prompt: None
+  load_on_boot: false
+- id: default
+  read_only_files:
+  - elyx/src/elyx/collections/**
+  - elyx/src/elyx/container/container.py
+  - elyx/src/elyx/contracts/container/container.py
+  - elyx/src/elyx/support/**
+  conventions:
+  - COMMENT_STANDARDS.md
+  - PROJECT_ARCHITECTURE.md
+  prompt: None
+  load_on_boot: false
 system:
   paths: {}
 web:
   enable: true
   chrome_binary_location: /etc/profiles/per-user/sincore/bin/google-chrome-stable
-
