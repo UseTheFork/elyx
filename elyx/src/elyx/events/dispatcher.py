@@ -174,25 +174,6 @@ class Dispatcher(ReflectsClosures, DispatcherContract):
 
         self.listen(f"{event}_pushed", dispatch_pushed)
 
-    async def subscribe(self, subscriber) -> None:
-        """
-        Register an event subscriber with the dispatcher.
-
-        Args:
-            subscriber: Subscriber instance or class name.
-        """
-
-        subscriber = self._resolve_subscriber(subscriber)
-        events = subscriber.subscribe(self)
-
-        if isinstance(events, dict):
-            for event, listeners in events.items():
-                for listener in Arr.wrap(listeners):
-                    if isinstance(listener, str) and hasattr(subscriber, listener):
-                        self.listen(event, getattr(subscriber, listener))
-                        continue
-                    self.listen(event, listener)
-
     async def flush(self, event) -> None:
         """
         Flush a set of pushed events.
@@ -370,10 +351,6 @@ class Dispatcher(ReflectsClosures, DispatcherContract):
         # TODO: Add wildcard cache support
         # listeners.extend(self.wildcards_cache.get(event_name, self._get_wildcard_listeners(event_name)))
         listeners.extend(self._get_wildcard_listeners(event_name))
-
-        # TODO: Add interface listeners support
-        # if class_exists(event_name):
-        #     return self._add_interface_listeners(event_name, listeners)
 
         return listeners
 

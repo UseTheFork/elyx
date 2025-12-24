@@ -21,6 +21,47 @@ class ExampleEvent:
     pass
 
 
+class TestEvent:
+    pass
+
+
+class DisptachListener1:
+    def __init__(self, test_storage):
+        self.test_storage = test_storage
+        self.test_storage.append("cons-1")
+
+    def handle(self, event):
+        self.test_storage.append("handle-1")
+
+
+class DisptachListener2:
+    def __init__(self, test_storage):
+        self.test_storage = test_storage
+        self.test_storage.append("cons-2")
+
+    def handle(self, event):
+        self.test_storage.append("handle-2")
+
+
+class DisptachListener3:
+    def __init__(self, test_storage):
+        self.test_storage = test_storage
+        self.test_storage.append("cons-3")
+
+    def handle(self, event):
+        self.test_storage.append("handle-3")
+
+
+class DisptachListener2Falser:
+    def __init__(self, test_storage):
+        self.test_storage = test_storage
+        self.test_storage.append("cons-2-falser")
+
+    def handle(self, event):
+        self.test_storage.append("handle-2-falser")
+        return False
+
+
 class TestEventDispatcher(BaseTest):
     """Test suite for Event Dispatcher class."""
 
@@ -665,3 +706,162 @@ class TestEventDispatcher(BaseTest):
         await dispatcher.dispatch(event_instance, ["foo"])
 
         assert test_storage["event_test"] is event_instance
+
+    async def test_nested_event(self):
+        """Test that nested event listeners are registered and fired correctly."""
+        from elyx.events.dispatcher import Dispatcher
+
+        # Create a test storage list to simulate state
+        test_storage = []
+
+        dispatcher = Dispatcher(self.container)
+
+        def outer_listener():
+            def inner_listener_1():
+                test_storage.append("fired 1")
+
+            def inner_listener_2():
+                test_storage.append("fired 2")
+
+            dispatcher.listen("event", inner_listener_1)
+            dispatcher.listen("event", inner_listener_2)
+
+        dispatcher.listen("event", outer_listener)
+
+        await dispatcher.dispatch("event")
+        assert test_storage == []
+
+        await dispatcher.dispatch("event")
+        assert test_storage == ["fired 1", "fired 2"]
+
+    async def test_get_listeners(self):
+        """Test that get_listeners returns the correct number of listeners."""
+        from elyx.events.dispatcher import Dispatcher
+
+        dispatcher = Dispatcher(self.container)
+        dispatcher.listen(ExampleEvent, "Listener1")
+        dispatcher.listen(ExampleEvent, "Listener2")
+        listeners = dispatcher.get_listeners("event_dispatcher_test.ExampleEvent")
+        assert len(listeners) == 2
+
+        dispatcher.listen(ExampleEvent, "Listener3")
+        listeners = dispatcher.get_listeners("event_dispatcher_test.ExampleEvent")
+        assert len(listeners) == 3
+
+    async def test_listeners_objects_creation_order(self):
+        """Test that listener objects are re-resolved on each dispatch (no memoization)."""
+        from elyx.events.dispatcher import Dispatcher
+
+        # Create a test storage list to simulate state
+        test_storage = []
+
+        dispatcher = Dispatcher(self.container)
+
+        # Bind listeners with test_storage dependency
+        self.container.bind(DisptachListener1, lambda c: DisptachListener1(test_storage))
+        self.container.bind(DisptachListener2, lambda c: DisptachListener2(test_storage))
+        self.container.bind(DisptachListener3, lambda c: DisptachListener3(test_storage))
+
+        dispatcher.listen(TestEvent, DisptachListener1)
+        dispatcher.listen(TestEvent, DisptachListener2)
+        dispatcher.listen(TestEvent, DisptachListener3)
+
+        # Attaching events does not make any objects
+        assert test_storage == []
+
+        await dispatcher.dispatch(TestEvent())
+
+        # Dispatching event does not make an object of the event class
+        assert test_storage == [
+            "cons-1",
+            "handle-1",
+            "cons-2",
+            "handle-2",
+            "cons-3",
+            "handle-3",
+        ]
+
+        await dispatcher.dispatch(TestEvent())
+
+        # Event Objects are re-resolved on each dispatch (no memoization)
+        assert test_storage == [
+            "cons-1",
+            "handle-1",
+            "cons-2",
+            "handle-2",
+            "cons-3",
+            "handle-3",
+            "cons-1",
+            "handle-1",
+            "cons-2",
+            "handle-2",
+            "cons-3",
+            "handle-3",
+        ]
+
+    async def test_listener_object_creation_is_lazy(self):
+        """Test that listener objects are created lazily (only when needed)."""
+        from elyx.events.dispatcher import Dispatcher
+
+        # Create a test storage list to simulate state
+        test_storage = []
+
+        dispatcher = Dispatcher(self.container)
+
+        # Bind listeners with test_storage dependency
+        self.container.bind(DisptachListener1, lambda c: DisptachListener1(test_storage))
+        self.container.bind(DisptachListener2, lambda c: DisptachListener2(test_storage))
+        self.container.bind(DisptachListener2Falser, lambda c: DisptachListener2Falser(test_storage))
+        self.container.bind(DisptachListener3, lambda c: DisptachListener3(test_storage))
+
+        dispatcher.listen(TestEvent, DisptachListener1)
+        dispatcher.listen(TestEvent, DisptachListener2Falser)
+        dispatcher.listen(TestEvent, DisptachListener3)
+        dispatcher.listen(ExampleEvent, DisptachListener2)
+
+        test_storage.clear()
+        await dispatcher.dispatch(ExampleEvent())
+
+        # It only resolves relevant listeners not all
+        assert test_storage == ["cons-2", "handle-2"]
+
+        test_storage.clear()
+        await dispatcher.dispatch(TestEvent())
+
+        # DisptachListener2Falser returns False, stopping propagation before DisptachListener3
+        assert test_storage == [
+            "cons-1",
+            "handle-1",
+            "cons-2-falser",
+            "handle-2-falser",
+        ]
+
+        # Test with halt=True - need a listener that returns non-null
+        class DisptachListener1WithReturn:
+            def __init__(self, test_storage):
+                self.test_storage = test_storage
+                self.test_storage.append("cons-1")
+
+            def handle(self, event):
+                self.test_storage.append("handle-1")
+                return "result"
+
+        dispatcher2 = Dispatcher(self.container)
+        test_storage2 = []
+
+        self.container.bind(DisptachListener1WithReturn, lambda c: DisptachListener1WithReturn(test_storage2))
+        self.container.bind(DisptachListener2Falser, lambda c: DisptachListener2Falser(test_storage2))
+        self.container.bind(DisptachListener3, lambda c: DisptachListener3(test_storage2))
+
+        dispatcher2.listen(TestEvent, DisptachListener1WithReturn)
+        dispatcher2.listen(TestEvent, DisptachListener2Falser)
+        dispatcher2.listen(TestEvent, DisptachListener3)
+
+        test_storage2.clear()
+        await dispatcher2.dispatch(TestEvent(), halt=True)
+
+        # With halt=True, stops after first non-null response
+        assert test_storage2 == [
+            "cons-1",
+            "handle-1",
+        ]
