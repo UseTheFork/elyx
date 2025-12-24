@@ -17,6 +17,10 @@ class TestEventListener:
         return "baz"
 
 
+class ExampleEvent:
+    pass
+
+
 class TestEventDispatcher(BaseTest):
     """Test suite for Event Dispatcher class."""
 
@@ -29,8 +33,8 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher = Dispatcher(self.container)
 
-        def listener(event, payload):
-            test_storage["event_result"] = payload
+        def listener(value):
+            test_storage["event_result"] = value
 
         dispatcher.listen("foo", listener)
         response = await dispatcher.dispatch("foo", "bar")
@@ -39,8 +43,8 @@ class TestEventDispatcher(BaseTest):
         assert test_storage["event_result"] == "bar"
 
         # we can still add listeners after the event has fired
-        def append_listener(event, payload):
-            test_storage["event_result"] += payload
+        def append_listener(value):
+            test_storage["event_result"] += value
 
         dispatcher.listen("foo", append_listener)
 
@@ -56,8 +60,8 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher = Dispatcher(self.container)
 
-        def listener(event, payload):
-            test_storage["deferred_result"] = payload
+        def listener(value):
+            test_storage["deferred_result"] = value
 
         dispatcher.listen("foo", listener)
 
@@ -80,11 +84,11 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher = Dispatcher(self.container)
 
-        def foo_listener(event, payload):
-            event_results.append(payload)
+        def foo_listener(value):
+            event_results.append(value)
 
-        def bar_listener(event, payload):
-            event_results.append(payload)
+        def bar_listener(value):
+            event_results.append(value)
 
         dispatcher.listen("foo", foo_listener)
         dispatcher.listen("bar", bar_listener)
@@ -107,8 +111,8 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher = Dispatcher(self.container)
 
-        def foo_listener(event, payload):
-            event_results.append(payload)
+        def foo_listener(value):
+            event_results.append(value)
 
         dispatcher.listen("foo", foo_listener)
 
@@ -137,11 +141,11 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher = Dispatcher(self.container)
 
-        def foo_listener(event, payload):
-            event_results.append(payload)
+        def foo_listener(value):
+            event_results.append(value)
 
-        def bar_listener(event, payload):
-            event_results.append(payload)
+        def bar_listener(value):
+            event_results.append(value)
 
         dispatcher.listen("foo", foo_listener)
         dispatcher.listen("bar", bar_listener)
@@ -165,11 +169,11 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher = Dispatcher(self.container)
 
-        def foo_listener(event, payload):
-            event_results.append(payload)
+        def foo_listener(value):
+            event_results.append(value)
 
-        def bar_listener(event, payload):
-            event_results.append(payload)
+        def bar_listener(value):
+            event_results.append(value)
 
         dispatcher.listen("foo", foo_listener)
         dispatcher.listen("bar", bar_listener)
@@ -203,10 +207,10 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher = Dispatcher(self.container)
 
-        def defer_test_listener(event, payload):
+        def defer_test_listener(event_obj):
             event_results.append("DeferTestEvent")
 
-        def immediate_test_listener(event, payload):
+        def immediate_test_listener(event_obj):
             event_results.append("ImmediateTestEvent")
 
         dispatcher.listen(DeferTestEvent, defer_test_listener)
@@ -228,11 +232,11 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher = Dispatcher(self.container)
 
-        def first_listener(event, payload):
+        def first_listener(value):
             assert True
             return "here"
 
-        def second_listener(event, payload):
+        def second_listener(value):
             raise Exception("should not be called")
 
         dispatcher.listen("foo", first_listener)
@@ -265,14 +269,14 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher = Dispatcher(self.container)
 
-        def first_listener(event, payload):
-            return payload
+        def first_listener(value):
+            return value
 
-        def second_listener(event, payload):
-            test_storage["event_result"] = payload
+        def second_listener(value):
+            test_storage["event_result"] = value
             return False
 
-        def third_listener(event, payload):
+        def third_listener(value):
             raise Exception("should not be called")
 
         dispatcher.listen("foo", first_listener)
@@ -281,8 +285,8 @@ class TestEventDispatcher(BaseTest):
 
         response = await dispatcher.dispatch("foo", ["bar"])
 
-        assert test_storage["event_result"] == ["bar"]
-        assert response == [["bar"], False]
+        assert test_storage["event_result"] == "bar"
+        assert response == ["bar", False]
 
     async def test_returning_falsy_values_continues_propagation(self):
         """Test that returning falsy values (except False) continues event propagation."""
@@ -290,16 +294,16 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher = Dispatcher(self.container)
 
-        def listener_zero(event, payload):
+        def listener_zero(value):
             return 0
 
-        def listener_empty_list(event, payload):
+        def listener_empty_list(value):
             return []
 
-        def listener_empty_string(event, payload):
+        def listener_empty_string(value):
             return ""
 
-        def listener_none(event, payload):
+        def listener_none(value):
             return None
 
         dispatcher.listen("foo", listener_zero)
@@ -354,22 +358,22 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher = Dispatcher(self.container)
 
-        def first_listener(event, payload):
-            test_storage["event_result"] = payload
+        def first_listener(value):
+            test_storage["event_result"] = value
 
         dispatcher.listen("update", first_listener)
         dispatcher.push("update", ["value"])
 
-        def second_listener(event, payload):
-            test_storage["event_result"] += "_" + payload
+        def second_listener(value):
+            test_storage["event_result"] += "_" + value
 
         dispatcher.listen("update", second_listener)
 
         assert "event_result" not in test_storage
         await dispatcher.flush("update")
 
-        def third_listener(event, payload):
-            test_storage["event_result"] += payload
+        def third_listener(value):
+            test_storage["event_result"] += value
 
         dispatcher.listen("update", third_listener)
         assert test_storage["event_result"] == "value_value"
@@ -383,8 +387,8 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher = Dispatcher(self.container)
 
-        def listener(event, payload):
-            test_storage["event_test"] = payload
+        def listener(value):
+            test_storage["event_test"] = value
 
         dispatcher.push("update", ["taylor"])
         dispatcher.listen("update", listener)
@@ -403,8 +407,8 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher = Dispatcher(self.container)
 
-        def listener(event, payload):
-            test_storage["event_test"] += payload
+        def listener(value):
+            test_storage["event_test"] += value
 
         dispatcher.push("update", ["hello "])
         dispatcher.push("update", ["world"])
@@ -425,8 +429,8 @@ class TestEventDispatcher(BaseTest):
 
         event_instance = DeferTestEvent()
 
-        def listener(event, payload):
-            test_storage["event_test"] = payload
+        def listener(value):
+            test_storage["event_test"] = value
 
         dispatcher.push(DeferTestEvent, event_instance)
         dispatcher.listen(DeferTestEvent, listener)
@@ -444,7 +448,7 @@ class TestEventDispatcher(BaseTest):
 
         dispatcher = Dispatcher(self.container)
 
-        def regular_listener(event, payload):
+        def regular_listener():
             test_storage["event_test"] = "regular"
 
         def wildcard_listener(event, payload):
@@ -461,3 +465,203 @@ class TestEventDispatcher(BaseTest):
 
         assert response == [None, None]
         assert test_storage["event_test"] == "wildcard"
+
+    async def test_wildcard_listeners_with_responses(self):
+        """Test that wildcard listeners return responses for matching events."""
+        from elyx.events.dispatcher import Dispatcher
+
+        dispatcher = Dispatcher(self.container)
+
+        def regular_listener(payload=None):
+            return "regular"
+
+        def wildcard_listener(event, payload):
+            return "wildcard"
+
+        def nope_listener(event, payload):
+            return "nope"
+
+        dispatcher.listen("foo.bar", regular_listener)
+        dispatcher.listen("foo.*", wildcard_listener)
+        dispatcher.listen("bar.*", nope_listener)
+
+        response = await dispatcher.dispatch("foo.bar")
+
+        assert response == ["regular", "wildcard"]
+
+    async def test_wildcard_listeners_cache_flushing(self):
+        """Test that wildcard listeners cache is flushed when new listeners are added."""
+        from elyx.events.dispatcher import Dispatcher
+
+        # Create a test storage dict to simulate state
+        test_storage = {}
+
+        dispatcher = Dispatcher(self.container)
+
+        def cached_wildcard_listener(event, payload):
+            test_storage["event_test"] = "cached_wildcard"
+
+        dispatcher.listen("foo.*", cached_wildcard_listener)
+        await dispatcher.dispatch("foo.bar")
+        assert test_storage["event_test"] == "cached_wildcard"
+
+        def new_wildcard_listener(event, payload):
+            test_storage["event_test"] = "new_wildcard"
+
+        dispatcher.listen("foo.*", new_wildcard_listener)
+        await dispatcher.dispatch("foo.bar")
+        assert test_storage["event_test"] == "new_wildcard"
+
+    async def test_listeners_can_be_removed(self):
+        """Test that listeners can be removed using forget."""
+        from elyx.events.dispatcher import Dispatcher
+
+        # Create a test storage dict to simulate state
+        test_storage = {}
+
+        dispatcher = Dispatcher(self.container)
+
+        def listener(value):
+            test_storage["event_test"] = "foo"
+
+        dispatcher.listen("foo", listener)
+        dispatcher.forget("foo")
+        await dispatcher.dispatch("foo")
+
+        assert "event_test" not in test_storage
+
+    async def test_wildcard_listeners_can_be_removed(self):
+        """Test that wildcard listeners can be removed using forget."""
+        from elyx.events.dispatcher import Dispatcher
+
+        # Create a test storage dict to simulate state
+        test_storage = {}
+
+        dispatcher = Dispatcher(self.container)
+
+        def listener(event, payload):
+            test_storage["event_test"] = "foo"
+
+        dispatcher.listen("foo.*", listener)
+        dispatcher.forget("foo.*")
+        await dispatcher.dispatch("foo.bar")
+
+        assert "event_test" not in test_storage
+
+    async def test_has_wildcard_listeners(self):
+        """Test that has_wildcard_listeners correctly identifies wildcard listeners."""
+        from elyx.events.dispatcher import Dispatcher
+
+        dispatcher = Dispatcher(self.container)
+
+        def listener(value):
+            pass
+
+        dispatcher.listen("foo", listener)
+        assert dispatcher.has_wildcard_listeners("foo") is False
+
+        dispatcher.listen("foo*", listener)
+        assert dispatcher.has_wildcard_listeners("foo") is True
+
+    async def test_listeners_can_be_found(self):
+        """Test that listeners can be found using has_listeners."""
+        from elyx.events.dispatcher import Dispatcher
+
+        dispatcher = Dispatcher(self.container)
+        assert dispatcher.has_listeners("foo") is False
+
+        def listener(value):
+            pass
+
+        dispatcher.listen("foo", listener)
+        assert dispatcher.has_listeners("foo") is True
+
+    async def test_wildcard_listeners_can_be_found(self):
+        """Test that wildcard listeners can be found using has_listeners."""
+        from elyx.events.dispatcher import Dispatcher
+
+        dispatcher = Dispatcher(self.container)
+        assert dispatcher.has_listeners("foo.*") is False
+
+        def listener(event, payload):
+            pass
+
+        dispatcher.listen("foo.*", listener)
+        assert dispatcher.has_listeners("foo.*") is True
+        assert dispatcher.has_listeners("foo.bar") is True
+
+    async def test_event_passed_first_to_wildcards(self):
+        """Test that event name is passed first to wildcard listeners."""
+        from elyx.events.dispatcher import Dispatcher
+
+        # Test wildcard listener receives event name and payload
+        dispatcher = Dispatcher(self.container)
+
+        def wildcard_listener(event, data):
+            assert event == "foo.bar"
+            assert data == ["first", "second"]
+
+        dispatcher.listen("foo.*", wildcard_listener)
+        await dispatcher.dispatch("foo.bar", ["first", "second"])
+
+        # Test regular listener receives unpacked payload
+        dispatcher2 = Dispatcher(self.container)
+
+        def regular_listener(first, second):
+            assert first == "first"
+            assert second == "second"
+
+        dispatcher2.listen("foo.bar", regular_listener)
+        await dispatcher2.dispatch("foo.bar", ["first", "second"])
+
+    async def test_classes_work(self):
+        """Test that event classes work with the dispatcher."""
+        from elyx.events.dispatcher import Dispatcher
+
+        # Create a test storage dict to simulate state
+        test_storage = {}
+
+        dispatcher = Dispatcher(self.container)
+
+        def listener(event):
+            test_storage["event_test"] = "baz"
+
+        dispatcher.listen(ExampleEvent, listener)
+        await dispatcher.dispatch(ExampleEvent())
+
+        assert test_storage["event_test"] == "baz"
+
+    async def test_classes_work_with_anonymous_listeners(self):
+        """Test that event classes work with anonymous listeners."""
+        from elyx.events.dispatcher import Dispatcher
+
+        # Create a test storage dict to simulate state
+        test_storage = {}
+
+        dispatcher = Dispatcher(self.container)
+
+        def listener(event, payload):
+            test_storage["event_test"] = "qux"
+
+        dispatcher.listen(listener)
+        await dispatcher.dispatch(ExampleEvent())
+
+        assert test_storage["event_test"] == "qux"
+
+    async def test_event_classes_are_payload(self):
+        """Test that event class instances are passed as payload to listeners."""
+        from elyx.events.dispatcher import Dispatcher
+
+        # Create a test storage dict to simulate state
+        test_storage = {}
+
+        dispatcher = Dispatcher(self.container)
+
+        def listener(event):
+            test_storage["event_test"] = event
+
+        dispatcher.listen(ExampleEvent, listener)
+        event_instance = ExampleEvent()
+        await dispatcher.dispatch(event_instance, ["foo"])
+
+        assert test_storage["event_test"] is event_instance

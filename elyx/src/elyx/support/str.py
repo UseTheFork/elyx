@@ -1,3 +1,6 @@
+import re
+
+
 class Str:
     """String helper utilities."""
 
@@ -155,3 +158,48 @@ class Str:
         if isinstance(abstract, type):
             return f"{abstract.__module__}.{abstract.__qualname__}"
         return abstract
+
+    @staticmethod
+    def is_pattern(pattern: str | list[str], value: str, ignore_case: bool = False) -> bool:
+        """
+        Determine if a given string matches a given pattern.
+
+        Args:
+            pattern: Pattern(s) to match against (supports wildcards with *).
+            value: The string value to check.
+            ignore_case: Whether to ignore case when matching.
+
+        Returns:
+            True if value matches any pattern, False otherwise.
+        """
+
+        value = str(value)
+
+        if not isinstance(pattern, list):
+            pattern = [pattern]
+
+        for p in pattern:
+            p = str(p)
+
+            # If the given value is an exact match we can of course return true right
+            # from the beginning. Otherwise, we will translate asterisks and do an
+            # actual pattern match against the two strings to see if they match.
+            if p == "*" or p == value:
+                return True
+
+            if ignore_case and p.lower() == value.lower():
+                return True
+
+            # Escape special regex characters except asterisks
+            p = re.escape(p)
+
+            # Asterisks are translated into zero-or-more regular expression wildcards
+            # to make it convenient to check if the strings starts with the given
+            # pattern such as "library/*", making any string check convenient.
+            p = p.replace(r"\*", ".*")
+
+            flags = re.IGNORECASE | re.DOTALL if ignore_case else re.DOTALL
+            if re.match(f"^{p}\\Z", value, flags):
+                return True
+
+        return False

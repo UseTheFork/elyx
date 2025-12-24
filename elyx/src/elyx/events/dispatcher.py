@@ -2,16 +2,18 @@ import inspect
 import re
 from typing import Any, Callable, TypeVar
 
+from elyx.collections.collection import Collection
 from elyx.container.container import Container
 from elyx.contracts.container.container import Container as ContainerContract
 from elyx.contracts.events.dispatcher import Dispatcher as DispatcherContract
 from elyx.support import Arr
+from elyx.support.concerns.reflects_closures import ReflectsClosures
 from elyx.support.str import Str
 
 T = TypeVar("T")
 
 
-class Dispatcher(DispatcherContract):
+class Dispatcher(ReflectsClosures, DispatcherContract):
     def __init__(self, container: ContainerContract | None = None):
         if container is None:
             container = Container()
@@ -28,47 +30,6 @@ class Dispatcher(DispatcherContract):
         self.deferred_events = []
         self.events_to_defer = None
 
-    def listen(
-        self,
-        events,
-        listener=None,
-    ) -> None:
-        """
-        Register an event listener with the dispatcher.
-
-        Args:
-            events: Event name(s), class type(s), or closure.
-            listener: Listener callable or class name.
-        """
-        # Case 1: listen(callback) - wildcard listener
-        if callable(events) and not isinstance(events, type) and listener is None:
-            self.wildcards.append(("*", events))
-            return
-
-        # Case 2: listen("event.name", callback) or listen(["event1", "event2"], callback)
-        # or listen(EventClass, callback)
-        # Normalize events to list
-        if isinstance(events, str):
-            event_list = [events]
-        elif isinstance(events, type):
-            # Normalize class type to string using container's method
-            event_list = [Str.class_to_string(events)]
-        elif isinstance(events, list):
-            # Normalize each item in the list
-            event_list = []
-            for event in events:
-                if isinstance(event, type):
-                    event_list.append(Str.class_to_string(event))
-                else:
-                    event_list.append(event)
-        else:
-            return
-
-        for event in event_list:
-            if event not in self.listeners:
-                self.listeners[event] = []
-            self.listeners[event].append(listener)
-
     def _setup_wildcard_listen(self, event: str, listener) -> None:
         """
         Setup a wildcard listener callback.
@@ -83,6 +44,55 @@ class Dispatcher(DispatcherContract):
         if event not in self.wildcards:
             self.wildcards[event] = []
         self.wildcards[event].append(listener)
+
+    def listen(
+        self,
+        events,
+        listener=None,
+    ) -> None:
+        """
+        Register an event listener with the dispatcher.
+
+        Args:
+            events: Event name(s), class type(s), or closure.
+            listener: Listener callable or class name.
+        """
+        # If events is a closure and no listener provided, extract event types from closure parameters
+        if callable(events) and not isinstance(events, type) and listener is None:
+            try:
+                event_types = self._first_closure_parameter_types(events)
+                Collection(event_types).each(lambda event: self.listen(event, events))
+                return
+            except RuntimeError:
+                # If we can't extract types, treat as wildcard listener
+                if "*" not in self.wildcards:
+                    self.wildcards["*"] = []
+                self.wildcards["*"].append(events)
+                return
+
+        # Normalize events to list
+        if isinstance(events, str):
+            event_list = [events]
+        elif isinstance(events, type):
+            event_list = [Str.class_to_string(events)]
+        elif isinstance(events, list):
+            event_list = []
+            for event in events:
+                if isinstance(event, type):
+                    event_list.append(Str.class_to_string(event))
+                else:
+                    event_list.append(event)
+        else:
+            return
+
+        # Register listener for each event
+        for event in event_list:
+            if "*" in event:
+                self._setup_wildcard_listen(event, listener)
+            else:
+                if event not in self.listeners:
+                    self.listeners[event] = []
+                self.listeners[event].append(listener)
         # Clear wildcard cache when adding new wildcard listeners
         # TODO: Implement wildcard cache optimization
 
@@ -96,7 +106,39 @@ class Dispatcher(DispatcherContract):
         Returns:
             True if event has listeners, False otherwise.
         """
-        return event_name in self.listeners and len(self.listeners[event_name]) > 0
+        return event_name in self.listeners or event_name in self.wildcards or self.has_wildcard_listeners(event_name)
+
+    def _matches_wildcard(self, event_name: str, pattern: str) -> bool:
+        """
+        Check if an event name matches a wildcard pattern.
+
+        Args:
+            event_name: The event name.
+            pattern: The wildcard pattern (e.g., "order.*" or "*").
+
+        Returns:
+            True if matches, False otherwise.
+        """
+        if pattern == "*":
+            return True
+
+        regex_pattern = pattern.replace(".", r"\.").replace("*", ".*")
+        return bool(re.match(f"^{regex_pattern}$", event_name))
+
+    def has_wildcard_listeners(self, event_name: str) -> bool:
+        """
+        Determine if a given event has wildcard listeners.
+
+        Args:
+            event_name: The event name.
+
+        Returns:
+            True if event has wildcard listeners, False otherwise.
+        """
+        for key in self.wildcards.keys():
+            if Str.is_pattern(key, event_name):
+                return True
+        return False
 
     def _resolve_subscriber(self, subscriber: object | str) -> object:
         """
@@ -123,7 +165,7 @@ class Dispatcher(DispatcherContract):
 
         event = Str.class_to_string(event)
 
-        async def dispatch_pushed(pushed_event, pushed_payload):
+        async def dispatch_pushed():
             # Unpack the payload if it's a list, otherwise pass as-is
             if isinstance(payload, list):
                 await self.dispatch(event, *payload)
@@ -168,8 +210,12 @@ class Dispatcher(DispatcherContract):
         Args:
             event: Event name.
         """
-        if event in self.listeners:
-            del self.listeners[event]
+        if "*" in event:
+            if event in self.wildcards:
+                del self.wildcards[event]
+        else:
+            if event in self.listeners:
+                del self.listeners[event]
 
     def forget_pushed(self) -> None:
         """Forget all of the queued listeners."""
@@ -190,23 +236,6 @@ class Dispatcher(DispatcherContract):
             First non-null response from listeners.
         """
         return await self.dispatch(event, payload, halt=True)
-
-    def _matches_wildcard(self, event_name: str, pattern: str) -> bool:
-        """
-        Check if an event name matches a wildcard pattern.
-
-        Args:
-            event_name: The event name.
-            pattern: The wildcard pattern (e.g., "order.*" or "*").
-
-        Returns:
-            True if matches, False otherwise.
-        """
-        if pattern == "*":
-            return True
-
-        regex_pattern = pattern.replace(".", r"\.").replace("*", ".*")
-        return bool(re.match(f"^{regex_pattern}$", event_name))
 
     def _parse_class_callable(self, listener: str) -> tuple[str, str]:
         """
@@ -259,10 +288,10 @@ class Dispatcher(DispatcherContract):
         """
 
         def wrapper(event, payload):
-            if wildcard:
-                callable_obj = self._create_class_callable(listener)
-                return callable_obj(event, payload)
             callable_obj = self._create_class_callable(listener)
+            if wildcard:
+                return callable_obj(event, payload)
+            # Unpack payload for regular listeners
             return callable_obj(*payload) if isinstance(payload, list) else callable_obj(payload)
 
         return wrapper
@@ -290,9 +319,8 @@ class Dispatcher(DispatcherContract):
         def wrapper(event, payload):
             if wildcard:
                 return listener(event, payload)
-            # For direct callables, they expect (event, payload)
-            # This wrapper is only for direct callables, not class-based ones
-            return listener(event, payload)
+            # For regular listeners, unpack the payload array
+            return listener(*payload) if isinstance(payload, list) else listener(payload)
 
         return wrapper
 
@@ -349,34 +377,6 @@ class Dispatcher(DispatcherContract):
 
         return listeners
 
-    async def _invoke_listener(self, listener: Callable | str, event: str | object, payload: Any) -> Any:
-        """
-        Invoke a single event listener.
-
-        Args:
-            listener: The listener callable or string.
-            event: Event name or object.
-            payload: Event payload.
-
-        Returns:
-            Response from the listener.
-        """
-        # Resolve string listeners from container
-        if isinstance(listener, str):
-            listener = await self.container.make(listener)
-
-        # Call the listener
-        if inspect.iscoroutinefunction(listener):
-            result = await listener(event, payload)
-        else:
-            result = listener(event, payload)
-
-        # If the result is a coroutine, await it
-        if inspect.iscoroutine(result):
-            result = await result
-
-        return result
-
     def _should_defer_event(self, event: str) -> bool:
         """
         Determine if the given event should be deferred.
@@ -410,7 +410,15 @@ class Dispatcher(DispatcherContract):
         responses = []
 
         for listener in listeners:
-            response = await self._invoke_listener(listener, event, payload)
+            # Call the listener directly (it's already wrapped by make_listener)
+            if inspect.iscoroutinefunction(listener):
+                response = await listener(event, payload)
+            else:
+                response = listener(event, payload)
+
+            # If the result is a coroutine, await it
+            if inspect.iscoroutine(response):
+                response = await response
 
             # If halting and we got a non-null response, return it immediately
             if halt and response is not None:
@@ -425,6 +433,24 @@ class Dispatcher(DispatcherContract):
 
         return None if halt else responses
 
+    def _parse_event_and_payload(self, event, payload):
+        """
+        Parse the given event and payload and prepare them for dispatching.
+
+        Args:
+            event: Event name or object.
+            payload: Event payload.
+
+        Returns:
+            Tuple of (event_name, wrapped_payload).
+        """
+        # If event is an object instance (not a string or type), wrap it as payload
+        if not isinstance(event, (str, type)):
+            payload = [event]
+            event = Str.class_to_string(type(event))
+
+        return (event, Arr.wrap(payload))
+
     async def dispatch(self, event, payload: Any = None, halt: bool = False) -> list[Any] | None:
         """
         Dispatch an event and call the listeners.
@@ -437,15 +463,8 @@ class Dispatcher(DispatcherContract):
         Returns:
             Array of responses or None if halted.
         """
-        # Get event name from object if needed
-        if isinstance(event, str):
-            event_name = event
-        elif isinstance(event, type):
-            # It's a class type
-            event_name = Str.class_to_string(event)
-        else:
-            # It's an instance, get its class
-            event_name = Str.class_to_string(type(event))
+        # Parse event and payload
+        event_name, payload = self._parse_event_and_payload(event, payload)
 
         # Check if we should defer this event
         if self._should_defer_event(event_name):
