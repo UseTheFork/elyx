@@ -93,7 +93,8 @@ presets:
   - elyx/src/elyx/support/**
   editable_files:
   - elyx/src/elyx/contracts/events/dispatcher.py
-  - elyx/src/test/events/event_dispatcher_test.py
+  - elyx/src/elyx/events/**
+  - elyx/src/test/events/**
   conventions:
   - COMMENT_STANDARDS.md
   - PROJECT_ARCHITECTURE.md

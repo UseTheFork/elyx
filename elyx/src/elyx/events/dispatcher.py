@@ -140,7 +140,7 @@ class Dispatcher(ReflectsClosures, DispatcherContract):
                 return True
         return False
 
-    def _resolve_subscriber(self, subscriber: object | str) -> object:
+    def _resolve_subscriber(self, subscriber: object | type | str) -> object:
         """
         Resolve the subscriber instance.
 
@@ -150,7 +150,7 @@ class Dispatcher(ReflectsClosures, DispatcherContract):
         Returns:
             Resolved subscriber instance.
         """
-        if isinstance(subscriber, str):
+        if isinstance(subscriber, (str, type)):
             return self.container.make(subscriber)
         return subscriber
 
@@ -183,7 +183,7 @@ class Dispatcher(ReflectsClosures, DispatcherContract):
         """
 
         subscriber = self._resolve_subscriber(subscriber)
-        events = subscriber.subscribe(self)
+        events = subscriber.subscribe(self)  # ty:ignore[unresolved-attribute]
 
         if isinstance(events, dict):
             for event, listeners in events.items():
