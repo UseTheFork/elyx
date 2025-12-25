@@ -84,7 +84,6 @@ presets:
   - COMMENT_STANDARDS.md
   - PROJECT_ARCHITECTURE.md
   - CODE_PATTERNS.md
-  load_on_boot: false
 - id: events
   read_only_files:
   - elyx/src/elyx/collections/**
@@ -99,7 +98,19 @@ presets:
   - COMMENT_STANDARDS.md
   - PROJECT_ARCHITECTURE.md
   - CODE_PATTERNS.md
-  load_on_boot: false
+- id: collections
+  read_only_files:
+  - elyx/src/elyx/container/container.py
+  - elyx/src/elyx/contracts/container/container.py
+  - elyx/src/elyx/support/**
+  editable_files:
+  - elyx/src/elyx/collections/**
+  - elyx/src/test/collections/**
+  - elyx/src/elyx/contracts/collections/**
+  conventions:
+  - COMMENT_STANDARDS.md
+  - PROJECT_ARCHITECTURE.md
+  - CODE_PATTERNS.md
 - id: default
   read_only_files:
   - elyx/src/elyx/collections/**
@@ -110,7 +121,6 @@ presets:
   - COMMENT_STANDARDS.md
   - PROJECT_ARCHITECTURE.md
   - CODE_PATTERNS.md
-  load_on_boot: false
 system:
   paths: {}
 web:

@@ -1,84 +1,19 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Any, Callable, Iterator
 
+from elyx.contracts.collections.array_access import ArrayAccess
 
-class Collection(ABC):
+
+class Collection(ArrayAccess):
     """Contract for collection classes with array access and enumerable capabilities."""
 
     @abstractmethod
-    def __getitem__(self, key: Any) -> Any:
-        """
-        Get an item at a given offset.
-
-        Args:
-            key: The offset to retrieve.
-
-        Returns:
-            The item at the given offset.
-        """
-        pass
-
-    @abstractmethod
-    def __setitem__(self, key: Any, value: Any) -> None:
-        """
-        Set an item at a given offset.
-
-        Args:
-            key: The offset to set.
-            value: The value to set.
-        """
-        pass
-
-    @abstractmethod
-    def __delitem__(self, key: Any) -> None:
-        """
-        Unset an item at a given offset.
-
-        Args:
-            key: The offset to unset.
-        """
-        pass
-
-    @abstractmethod
-    def __contains__(self, key: Any) -> bool:
-        """
-        Determine if an item exists at an offset.
-
-        Args:
-            key: The offset to check.
-
-        Returns:
-            True if the offset exists, False otherwise.
-        """
-        pass
-
-    @abstractmethod
-    def __iter__(self) -> Iterator:
-        """
-        Get an iterator for the items.
-
-        Returns:
-            Iterator for the collection items.
-        """
-        pass
-
-    @abstractmethod
-    def __len__(self) -> int:
-        """
-        Count the number of items in the collection.
-
-        Returns:
-            The number of items.
-        """
-        pass
-
-    @abstractmethod
-    def all(self) -> list[Any]:
+    def all(self) -> dict[Any, Any]:
         """
         Get all of the items in the collection.
 
         Returns:
-            List of all items.
+            Dict of all items.
         """
         pass
 
@@ -180,11 +115,31 @@ class Collection(ABC):
         pass
 
     @abstractmethod
-    def to_array(self) -> list[Any]:
+    def to_array(self) -> dict[Any, Any]:
         """
-        Get the collection as a plain list.
+        Get the collection as a plain dict.
 
         Returns:
-            List representation of the collection.
+            Dict representation of the collection.
+        """
+        pass
+
+    @abstractmethod
+    def __iter__(self) -> Iterator:
+        """
+        Get an iterator for the items.
+
+        Returns:
+            Iterator for the collection items.
+        """
+        pass
+
+    @abstractmethod
+    def __len__(self) -> int:
+        """
+        Count the number of items in the collection.
+
+        Returns:
+            The number of items.
         """
         pass

@@ -174,7 +174,7 @@ class TestRepository(BaseTest):
         collection = self.repository.collection("array")
 
         assert isinstance(collection, Collection)
-        assert collection.to_array() == ["aaa", "zzz"]
+        assert collection.to_array() == {0: "aaa", 1: "zzz"}
 
     def test_it_gets_as_boolean(self):
         """Test that boolean() retrieves a boolean value."""
