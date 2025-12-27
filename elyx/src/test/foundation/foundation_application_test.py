@@ -22,6 +22,52 @@ class NonContractBackedClass:
 class TestFoundationApplication(BaseTest):
     """Test suite for Application class."""
 
+    def test_booted_callbacks(self):
+        """Test that booted callbacks are executed during and after boot."""
+        from elyx.foundation.application import Application
+
+        application = Application()
+
+        counter = {"value": 0}
+
+        def closure(app):
+            counter["value"] += 1
+            assert application is app
+
+        def closure2(app):
+            counter["value"] += 1
+            assert application is app
+
+        def closure3(app):
+            counter["value"] += 1
+            assert application is app
+
+        application.booting(closure)
+        application.booted(closure)
+        application.booted(closure2)
+        application.boot()
+
+        assert 3 == counter["value"]
+
+        application.booted(closure3)
+
+        assert 4 == counter["value"]
+
+    def test_macroable(self):
+        """Test that Application supports macros for dynamic method registration."""
+        from elyx.foundation.application import Application
+
+        app = Application()
+        app["env"] = "foo"
+
+        app.macro("foo", lambda self: self.environment("foo"))
+
+        assert app.foo()
+
+        app["env"] = "bar"
+
+        assert not app.foo()
+
     def test_use_config_path(self):
         """Test that use_config_path sets a custom configuration directory path."""
         from elyx.foundation.application import Application

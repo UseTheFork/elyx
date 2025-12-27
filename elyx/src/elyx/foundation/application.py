@@ -10,13 +10,16 @@ from elyx.events.event_service_provider import EventServiceProvider
 from elyx.foundation.console.kernel import ConsoleKernel
 from elyx.foundation.providers.console_command_service_provider import ConsoleCommandServiceProvider
 from elyx.logging.log_service_provider import LogServiceProvider
+from elyx.support.concerns.macroable import Macroable
+from elyx.support.str import Str
 
 T = TypeVar("T")
 
 
-class Application(Container):
+class Application(Container, Macroable):
     _has_been_bootstrapped: bool = False
     _booted: bool = False
+    _booting_callbacks: list = []
     _booted_callbacks: list = []
 
     _terminating_callbacks: list = []
@@ -94,6 +97,18 @@ class Application(Container):
             instance = self.make(bootstrapper)
             instance.bootstrap(self)
 
+    def booting(self, callback: Callable) -> None:
+        """
+        Register a new boot listener.
+
+        Args:
+            callback: Callback to execute during boot.
+
+        Returns:
+            None
+        """
+        self._booting_callbacks.append(callback)
+
     def booted(self, callback):
         """
         Register a new "booted" listener.
@@ -127,6 +142,10 @@ class Application(Container):
         """
         if self.is_booted():
             return
+
+        # Fire booting callbacks
+        for callback in self._booting_callbacks:
+            callback(self)
 
         # Fire booted callbacks
         for callback in self._booted_callbacks:
@@ -309,6 +328,41 @@ class Application(Container):
             The full path to the environment file.
         """
         return self.join_paths(self.environment_path(), self.environment_file())
+
+    def environment(self, *environments: str) -> str | bool:
+        """
+        Get or check the current application environment.
+
+        Args:
+            *environments: Optional environment names to check against.
+
+        Returns:
+            Environment name if no args provided, bool if checking specific environments.
+        """
+
+        if len(environments) > 0:
+            patterns = environments[0] if isinstance(environments[0], list) else list(environments)
+            return Str.is_pattern(patterns, self["env"])
+
+        return self["env"]
+
+    def is_local(self) -> bool:
+        """
+        Determine if the application is in the local environment.
+
+        Returns:
+            True if in local environment, False otherwise.
+        """
+        return self["env"] == "local"
+
+    def is_production(self) -> bool:
+        """
+        Determine if the application is in the production environment.
+
+        Returns:
+            True if in production environment, False otherwise.
+        """
+        return self["env"] == "production"
 
     def detect_environment(self, callback: Callable) -> str:
         """
