@@ -23,6 +23,10 @@ class LoadConfiguration(Bootstrapper):
         config = app.instance("config", Repository())
         self.load_configuration_files(app, config)
 
+        app.detect_environment(lambda: config.get("app.env", "production"))
+
+        app.resolve_environment_using(lambda environments: app.environment(*environments))
+
     def load_configuration_files(self, app: Application, config: Repository):
         """
         Load the configuration items from all of the files.

@@ -329,3 +329,16 @@ class Application(Container):
     def terminate(self) -> None:
         """Terminate the application."""
         pass
+
+    @abstractmethod
+    def detect_environment(self, callback: Callable) -> str:
+        """
+        Detect the application's current environment.
+
+        Args:
+            callback: Closure that returns the environment name.
+
+        Returns:
+            Environment name.
+        """
+        pass

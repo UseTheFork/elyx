@@ -25,20 +25,18 @@ class Application(Container):
     _environment_file = ".env"
     _is_running_in_console: bool | None = None
 
-    @staticmethod
-    def configure(base_path: Optional[Path] = None):
-        """
-        Create and configure a new Application instance.
+    def _register_base_bindings(self):
+        """Register the basic bindings into the container."""
+        self.instance("app", self)
+        self.instance(Application, self)
+        self.instance(Container, self)
 
-        Args:
-            base_path: Optional base path for the application.
+    def _register_base_service_providers(self):
+        """Register all of the base service providers."""
 
-        Returns:
-            Application instance.
-        """
-        from elyx.foundation.configuration.application_builder import ApplicationBuilder
-
-        return ApplicationBuilder(Application(base_path=base_path)).with_kernels().with_commands().with_providers()
+        self.register(EventServiceProvider)
+        self.register(LogServiceProvider)
+        self.register(ConsoleCommandServiceProvider)
 
     def __init__(self, base_path: Optional[Path] = None):
         """Initialize the application container."""
@@ -55,18 +53,20 @@ class Application(Container):
         self._register_base_bindings()
         self._register_base_service_providers()
 
-    def _register_base_bindings(self):
-        """Register the basic bindings into the container."""
-        self.instance("app", self)
-        self.instance(Application, self)
-        self.instance(Container, self)
+    @staticmethod
+    def configure(base_path: Optional[Path] = None):
+        """
+        Create and configure a new Application instance.
 
-    def _register_base_service_providers(self):
-        """Register all of the base service providers."""
+        Args:
+            base_path: Optional base path for the application.
 
-        self.register(EventServiceProvider)
-        self.register(LogServiceProvider)
-        self.register(ConsoleCommandServiceProvider)
+        Returns:
+            Application instance.
+        """
+        from elyx.foundation.configuration.application_builder import ApplicationBuilder
+
+        return ApplicationBuilder(Application(base_path=base_path)).with_kernels().with_commands().with_providers()
 
     def _register_core_container_aliases(self):
         """Register the core class aliases in the container."""
@@ -211,6 +211,20 @@ class Application(Container):
         base = config_path if config_path else self.base_path("config")
         return self.join_paths(base, path)
 
+    def use_config_path(self, path: str | Path) -> "Application":
+        """
+        Set the configuration directory.
+
+        Args:
+            path: The configuration directory path.
+
+        Returns:
+            Self for method chaining.
+        """
+        self._config_path = Path(path)
+        self.instance("path.config", self._config_path)
+        return self
+
     def database_path(self, path: str = "") -> Path:
         """
         Get the path to the database directory.
@@ -296,6 +310,24 @@ class Application(Container):
         """
         return self.join_paths(self.environment_path(), self.environment_file())
 
+    def detect_environment(self, callback: Callable) -> str:
+        """
+        Detect the application's current environment.
+
+        Args:
+            callback: Closure that returns the environment name.
+
+        Returns:
+            Environment name.
+        """
+        from elyx.foundation.environment_detector import EnvironmentDetector
+
+        args = sys.argv if self.running_in_console() else None
+
+        env = EnvironmentDetector().detect(callback, args)
+        self.instance("env", env)
+        return env
+
     def running_in_console(self) -> bool:
         """
         Determine if the application is running in the console.
@@ -313,6 +345,26 @@ class Application(Container):
                 self._is_running_in_console = not hasattr(sys, "ps1") and sys.stdin.isatty()
 
         return bool(self._is_running_in_console)
+
+    def _mark_as_registered(self, provider: ServiceProvider) -> None:
+        """
+        Mark the given provider as registered.
+
+        Args:
+            provider: Service provider instance.
+        """
+        name = self._normalize_abstract(provider)
+        self._service_providers[name] = provider
+
+    def _boot_provider(self, provider: ServiceProvider) -> None:
+        """
+        Boot the given service provider.
+
+        Args:
+            provider: Service provider instance to boot.
+        """
+        if hasattr(provider, "boot") and callable(provider.boot):
+            self.call(provider.boot)
 
     def register(self, provider, force: bool = False) -> ServiceProvider:
         """
@@ -374,26 +426,6 @@ class Application(Container):
             Service provider instance.
         """
         return provider(self)
-
-    def _mark_as_registered(self, provider: ServiceProvider) -> None:
-        """
-        Mark the given provider as registered.
-
-        Args:
-            provider: Service provider instance.
-        """
-        name = self._normalize_abstract(provider)
-        self._service_providers[name] = provider
-
-    def _boot_provider(self, provider: ServiceProvider) -> None:
-        """
-        Boot the given service provider.
-
-        Args:
-            provider: Service provider instance to boot.
-        """
-        if hasattr(provider, "boot") and callable(provider.boot):
-            self.call(provider.boot)
 
     def terminating(self, callback: Callable | str) -> "Application":
         """
