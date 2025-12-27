@@ -83,6 +83,7 @@ presets:
   conventions:
   - COMMENT_STANDARDS.md
   - PROJECT_ARCHITECTURE.md
+  - TESTING_CODE_PATTERNS.md
   - CODE_PATTERNS.md
 - id: events
   read_only_files:
@@ -97,6 +98,20 @@ presets:
   conventions:
   - COMMENT_STANDARDS.md
   - PROJECT_ARCHITECTURE.md
+  - TESTING_CODE_PATTERNS.md
+  - CODE_PATTERNS.md
+- id: application
+  read_only_files:
+  - elyx/src/elyx/container/container.py
+  - elyx/src/elyx/contracts/container/container.py
+  - elyx/src/elyx/support/**
+  editable_files:
+  - elyx/src/elyx/foundation/application.py
+  - elyx/src/elyx/contracts/foundation/application.py
+  conventions:
+  - COMMENT_STANDARDS.md
+  - PROJECT_ARCHITECTURE.md
+  - TESTING_CODE_PATTERNS.md
   - CODE_PATTERNS.md
 - id: collections
   read_only_files:
@@ -110,6 +125,7 @@ presets:
   conventions:
   - COMMENT_STANDARDS.md
   - PROJECT_ARCHITECTURE.md
+  - TESTING_CODE_PATTERNS.md
   - CODE_PATTERNS.md
 - id: default
   read_only_files:
@@ -120,6 +136,7 @@ presets:
   conventions:
   - COMMENT_STANDARDS.md
   - PROJECT_ARCHITECTURE.md
+  - TESTING_CODE_PATTERNS.md
   - CODE_PATTERNS.md
 system:
   paths: {}
