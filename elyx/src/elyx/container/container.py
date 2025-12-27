@@ -1,6 +1,6 @@
 import inspect
 import types
-from typing import Any, Callable, Optional, TypeVar, Union, get_args, get_origin
+from typing import Any, Callable, TypeVar, Union, get_args, get_origin
 
 from elyx.contracts.container.container import Container as ContainerContract
 from elyx.exceptions import EntryNotFoundException
@@ -830,7 +830,7 @@ class Container(ContainerContract):
         """Clear all of the scoped instances from the container."""
         self._scoped_instances = {}
 
-    def resolve_environment_using(self, callback: Optional[Callable]) -> None:
+    def resolve_environment_using(self, callback: Callable) -> None:
         """
         Set the callback which determines the current container environment.
 

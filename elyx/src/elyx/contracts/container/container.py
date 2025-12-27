@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Callable, Optional, TypeVar, Union
+from typing import Any, Callable, TypeVar, Union
 
 from elyx.contracts.container.container_interface import ContainerInterface
 
@@ -289,7 +289,7 @@ class Container(ContainerInterface):
         pass
 
     @abstractmethod
-    def resolve_environment_using(self, callback: Optional[Callable]) -> None:
+    def resolve_environment_using(self, callback: Callable) -> None:
         """
         Set the callback which determines the current container environment.
 
