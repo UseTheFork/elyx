@@ -22,6 +22,29 @@ class NonContractBackedClass:
 class TestFoundationApplication(BaseTest):
     """Test suite for Application class."""
 
+    def test_booting_callbacks(self):
+        """Test that booting callbacks are executed during boot."""
+        from elyx.foundation.application import Application
+
+        application = Application()
+
+        counter = {"value": 0}
+
+        def closure(app):
+            counter["value"] += 1
+            assert application is app
+
+        def closure2(app):
+            counter["value"] += 1
+            assert application is app
+
+        application.booting(closure)
+        application.booting(closure2)
+
+        application.boot()
+
+        assert 2 == counter["value"]
+
     def test_booted_callbacks(self):
         """Test that booted callbacks are executed during and after boot."""
         from elyx.foundation.application import Application
