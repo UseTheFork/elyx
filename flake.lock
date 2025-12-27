@@ -10,10 +10,11 @@
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "dirtyRev": "e3824b32c24e5ef0dfa341b8aea3dd07eca13e7f-dirty",
-        "dirtyShortRev": "e3824b3-dirty",
-        "lastModified": 1766173497,
-        "narHash": "sha256-ekdaup6A9oGuonKRM6nJMMcMHMbKa/ZvItKqgORkZFk=",
+        "lastModified": 1766862844,
+        "narHash": "sha256-5txViX2brgiJe1HXDEfOi7JKTKJnEQ87m9IIUxGrKYQ=",
+        "ref": "refs/heads/main",
+        "rev": "3d0d4bbb627a886ac4ac3e07b1fdec6e2784e444",
+        "revCount": 468,
         "type": "git",
         "url": "file:///home/sincore/source/byte"
       },
@@ -106,11 +107,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1765779637,
-        "narHash": "sha256-KJ2wa/BLSrTqDjbfyNx70ov/HdgNBCBBSQP3BIzKnv4=",
+        "lastModified": 1766651565,
+        "narHash": "sha256-QEhk0eXgyIqTpJ/ehZKg9IKS7EtlWxF3N7DXy42zPfU=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "1306659b587dc277866c7b69eb97e5f07864d8c4",
+        "rev": "3e2499d5539c16d0d173ba53552a4ff8547f4539",
         "type": "github"
       },
       "original": {
