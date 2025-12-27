@@ -17,17 +17,6 @@ T = TypeVar("T")
 
 
 class Application(Container, Macroable):
-    _has_been_bootstrapped: bool = False
-    _booted: bool = False
-    _booting_callbacks: list = []
-    _booted_callbacks: list = []
-
-    _terminating_callbacks: list = []
-
-    _environment_path = None
-    _environment_file = ".env"
-    _is_running_in_console: bool | None = None
-
     def _register_base_bindings(self):
         """Register the basic bindings into the container."""
         self.instance("app", self)
@@ -44,6 +33,17 @@ class Application(Container, Macroable):
     def __init__(self, base_path: Optional[Path] = None):
         """Initialize the application container."""
         super().__init__()
+
+        # Initialize instance variables
+        self._has_been_bootstrapped = False
+        self._booted = False
+        self._booting_callbacks = []
+        self._booted_callbacks = []
+        self._terminating_callbacks = []
+        self._environment_path = None
+        self._environment_file = ".env"
+        self._is_running_in_console = None
+
         if base_path:
             self.set_base_path(base_path)
 
