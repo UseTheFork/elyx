@@ -4,7 +4,7 @@ from typing import Any, Callable, TypeVar, Union, get_args, get_origin
 
 from elyx.contracts.container.container import Container as ContainerContract
 from elyx.exceptions import EntryNotFoundException
-from elyx.support.str import Str
+from elyx.support import Str
 
 T = TypeVar("T")
 
@@ -649,7 +649,7 @@ class Container(ContainerContract):
         Call the given Closure / class:method and inject its dependencies.
 
         Args:
-            callback: Callable or string in format 'Class@method'.
+            callback: Callable or string in format 'Class:method'.
             parameters: Parameters to pass to the callback.
             default_method: Default method name if not specified in callback string.
 
@@ -663,7 +663,23 @@ class Container(ContainerContract):
         if isinstance(callback, str):
             class_name, method_name = Str.parse_callback(callback, default_method or "__invoke__")
 
-            instance = self.make(class_name)
+            # If the class is not bound, try to import it dynamically
+            if not self.bound(class_name):
+                # Import the class dynamically
+                parts = class_name.rsplit(".", 1)
+                if len(parts) == 2:
+                    module_name, class_attr = parts
+                    try:
+                        module = __import__(module_name, fromlist=[class_attr])
+                        class_obj = getattr(module, class_attr)
+                        instance = self.make(class_obj)
+                    except (ImportError, AttributeError) as e:
+                        raise ValueError(f"Cannot import class '{class_name}': {e}")
+                else:
+                    raise ValueError(f"Invalid class name format: '{class_name}'")
+            else:
+                instance = self.make(class_name)
+
             if method_name is None:
                 raise ValueError(f"No method specified for callback '{callback}' and no default method provided")
 

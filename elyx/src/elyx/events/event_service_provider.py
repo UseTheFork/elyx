@@ -1,5 +1,5 @@
-from elyx.events.dispatcher import Dispatcher
-from elyx.support.service_provider import ServiceProvider
+from elyx.events import Dispatcher
+from elyx.support import ServiceProvider
 
 
 class EventServiceProvider(ServiceProvider):
