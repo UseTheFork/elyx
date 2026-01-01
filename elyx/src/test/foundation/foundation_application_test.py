@@ -19,8 +19,29 @@ class NonContractBackedClass:
     pass
 
 
+class ConcreteTerminator:
+    counter = 0
+
+    def terminate(self):
+        ConcreteTerminator.counter += 1
+
+
 class TestFoundationApplication(BaseTest):
     """Test suite for Application class."""
+
+    def test_termination_callbacks_can_accept_colon_notation(self):
+        """Test that termination callbacks can accept class:method notation."""
+        from elyx.foundation.application import Application
+
+        ConcreteTerminator.counter = 0
+
+        app = Application()
+        app.terminating("foundation_application_test.ConcreteTerminator::terminate")
+        # app.terminating(f"{ConcreteTerminator.__module__}.{ConcreteTerminator.__qualname__}:terminate")
+
+        app.terminate()
+
+        assert 1 == ConcreteTerminator.counter
 
     def test_booting_callbacks(self):
         """Test that booting callbacks are executed during boot."""
