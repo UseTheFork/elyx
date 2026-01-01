@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import Any, Callable, Iterator
 
-from elyx.contracts.collections.array_access import ArrayAccess
+from elyx.contracts.collections import ArrayAccess
 
 
 class Collection(ArrayAccess):
@@ -76,7 +76,7 @@ class Collection(ArrayAccess):
         pass
 
     @abstractmethod
-    def each(self, callback: Callable[[Any, Any], bool | None]) -> "Collection":
+    def each(self, callback: Callable[[Any, Any], bool | None]) -> Collection:
         """
         Execute a callback over each item.
 
@@ -89,7 +89,7 @@ class Collection(ArrayAccess):
         pass
 
     @abstractmethod
-    def map(self, callback: Callable[[Any, Any], Any]) -> "Collection":
+    def map(self, callback: Callable[[Any, Any], Any]) -> Collection:
         """
         Run a map over each of the items.
 
@@ -102,7 +102,7 @@ class Collection(ArrayAccess):
         pass
 
     @abstractmethod
-    def filter(self, callback: Callable[[Any, Any], bool] | None = None) -> "Collection":
+    def filter(self, callback: Callable[[Any, Any], bool] | None = None) -> Collection:
         """
         Run a filter over each of the items.
 

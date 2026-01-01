@@ -1,8 +1,10 @@
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-from elyx.console.application import Application as Elyx
-from elyx.contracts.foundation.application import Application
-from elyx.contracts.support.service_provider import ServiceProvider as ServiceProviderContract
+from elyx.console import Application as Elyx
+from elyx.contracts.support import ServiceProvider as ServiceProviderContract
+
+if TYPE_CHECKING:
+    from elyx.foundation import Application
 
 
 class ServiceProvider(ServiceProviderContract):

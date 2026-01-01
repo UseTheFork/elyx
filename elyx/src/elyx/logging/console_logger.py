@@ -1,7 +1,6 @@
-
 from rich.console import Console
 
-from elyx.contracts.logging.logger import Logger
+from elyx.contracts.logging import Logger
 
 
 class ConsoleLogger(Logger):

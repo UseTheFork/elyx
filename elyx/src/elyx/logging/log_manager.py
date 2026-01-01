@@ -1,25 +1,10 @@
-from elyx.contracts.container.container import Container as ContainerContract
+from elyx.contracts.container import Container as ContainerContract
 
 
 class LogManager:
     def __init__(self, app: ContainerContract):
         self.app = app
         self.channels = {}  # Cache of created channels
-
-    async def channel(self, name: str | None = None):
-        """Get a log channel instance"""
-        if name is None:
-            name = await self.get_default_driver()
-
-        if name not in self.channels:
-            self.channels[name] = await self._resolve_channel(name)
-
-        return self.channels[name]
-
-    async def get_default_driver(self) -> str:
-        """Get default channel name from config"""
-        config = await self.app.make("config")
-        return config.get("logging.default", "stack")
 
     async def _resolve_channel(self, name: str):
         """
@@ -51,3 +36,18 @@ class LogManager:
             raise ValueError(f"Unsupported logging driver: {driver}")
 
         return logger_class(channel_config)
+
+    async def channel(self, name: str | None = None):
+        """Get a log channel instance"""
+        if name is None:
+            name = await self.get_default_driver()
+
+        if name not in self.channels:
+            self.channels[name] = await self._resolve_channel(name)
+
+        return self.channels[name]
+
+    async def get_default_driver(self) -> str:
+        """Get default channel name from config"""
+        config = await self.app.make("config")
+        return config.get("logging.default", "stack")

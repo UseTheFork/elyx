@@ -1,5 +1,5 @@
 from elyx.console.command import Command
-from elyx.support.facades.config import Config
+from elyx.support.facades import Config
 
 
 class AboutCommand(Command):
@@ -9,15 +9,6 @@ class AboutCommand(Command):
 
     description: str = "Display basic information about your application"
 
-    async def handle(self):
-        """Execute the test command."""
-        config = self.get_elyx().make("config")
-        print(config.all())
-
-        config = await self._gather_application_information()
-
-        return 0
-
     async def _gather_application_information(self):
         app_name = Config.get("app.name")
 
@@ -25,5 +16,14 @@ class AboutCommand(Command):
         print(app_name)
         print(app_name)
         print(app_name)
+
+        return 0
+
+    async def handle(self):
+        """Execute the test command."""
+        config = self.get_elyx().make("config")
+        print(config.all())
+
+        config = await self._gather_application_information()
 
         return 0

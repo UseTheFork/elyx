@@ -1,7 +1,7 @@
 from typing import Any
 
-from elyx.contracts.collections.array_access import ArrayAccess
-from elyx.support.concerns.macroable import Macroable
+from elyx.contracts.collections import ArrayAccess
+from elyx.support import Macroable
 
 
 class Arr(Macroable):

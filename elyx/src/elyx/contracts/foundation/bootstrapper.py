@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-from elyx.contracts.foundation.application import Application
+if TYPE_CHECKING:
+    from elyx.foundation import Application
 
 
 class Bootstrapper(ABC):

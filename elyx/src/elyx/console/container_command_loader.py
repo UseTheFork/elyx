@@ -1,6 +1,10 @@
-from elyx.contracts.console.command import Command
-from elyx.contracts.container.container import Container
-from elyx.contracts.container.container_interface import ContainerInterface
+from typing import TYPE_CHECKING
+
+from elyx.contracts.container import ContainerInterface
+
+if TYPE_CHECKING:
+    from elyx.console import Command
+    from elyx.container import Container
 
 
 class ContainerCommandLoader(ContainerInterface):

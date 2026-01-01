@@ -1,10 +1,11 @@
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from elyx.contracts.console.kernel import Kernel as ConsoleKernelContract
-from elyx.foundation.application import Application
-from elyx.foundation.bootstrap.register_providers import RegisterProviders
-from elyx.foundation.console.kernel import ConsoleKernel
+from elyx.contracts.console import Kernel as ConsoleKernelContract
+from elyx.foundation import ConsoleKernel, RegisterProviders
+
+if TYPE_CHECKING:
+    from elyx.foundation import Application
 
 
 class ApplicationBuilder:
@@ -12,7 +13,7 @@ class ApplicationBuilder:
         """Create a new application builder instance."""
         self._application = application
 
-    def with_kernels(self) -> "ApplicationBuilder":
+    def with_kernels(self) -> ApplicationBuilder:
         """
         Register the console kernel as a singleton.
 
@@ -25,7 +26,7 @@ class ApplicationBuilder:
 
     def with_providers(
         self, providers: list[type] | None = None, with_bootstrap_providers: bool = True
-    ) -> "ApplicationBuilder":
+    ) -> ApplicationBuilder:
         """
         Register service providers with the application.
 
@@ -51,7 +52,7 @@ class ApplicationBuilder:
 
         return self
 
-    def with_commands(self, commands: Optional[list[type]] = None) -> "ApplicationBuilder":
+    def with_commands(self, commands: Optional[list[type]] = None) -> ApplicationBuilder:
         """
         Register commands with the application.
 

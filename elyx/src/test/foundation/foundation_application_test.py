@@ -31,12 +31,12 @@ class TestFoundationApplication(BaseTest):
 
     def test_termination_callbacks_can_accept_colon_notation(self):
         """Test that termination callbacks can accept class:method notation."""
-        from elyx.foundation.application import Application
+        from elyx.foundation import Application
 
         ConcreteTerminator.counter = 0
 
         app = Application()
-        app.terminating("foundation_application_test.ConcreteTerminator::terminate")
+        app.terminating("foundation_application_test.ConcreteTerminator:terminate")
         # app.terminating(f"{ConcreteTerminator.__module__}.{ConcreteTerminator.__qualname__}:terminate")
 
         app.terminate()
@@ -45,7 +45,7 @@ class TestFoundationApplication(BaseTest):
 
     def test_booting_callbacks(self):
         """Test that booting callbacks are executed during boot."""
-        from elyx.foundation.application import Application
+        from elyx.foundation import Application
 
         application = Application()
 
@@ -68,7 +68,7 @@ class TestFoundationApplication(BaseTest):
 
     def test_booted_callbacks(self):
         """Test that booted callbacks are executed during and after boot."""
-        from elyx.foundation.application import Application
+        from elyx.foundation import Application
 
         application = Application()
 
@@ -99,7 +99,7 @@ class TestFoundationApplication(BaseTest):
 
     def test_macroable(self):
         """Test that Application supports macros for dynamic method registration."""
-        from elyx.foundation.application import Application
+        from elyx.foundation import Application
 
         app = Application()
         app["env"] = "foo"
@@ -114,7 +114,7 @@ class TestFoundationApplication(BaseTest):
 
     def test_use_config_path(self):
         """Test that use_config_path sets a custom configuration directory path."""
-        from elyx.foundation.application import Application
+        from elyx.foundation import Application
         from elyx.foundation.bootstrap.load_configuration import LoadConfiguration
 
         # Set a container instance as singleton
@@ -132,8 +132,7 @@ class TestFoundationApplication(BaseTest):
 
     def test_merging_config(self):
         """Test that configuration files are properly merged from the config directory."""
-        from elyx.foundation.application import Application
-        from elyx.foundation.bootstrap.load_configuration import LoadConfiguration
+        from elyx.foundation import Application, LoadConfiguration
 
         # Set a container instance as singleton
         app = Application()

@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-from elyx.contracts.console.application import Application
-from elyx.contracts.container.container import Container
+if TYPE_CHECKING:
+    from elyx.container import Container
+    from elyx.foundation import Application
 
 
 class Command(ABC):

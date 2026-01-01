@@ -2,7 +2,7 @@ import inspect
 import types
 from typing import Any, Callable, TypeVar, Union, get_args, get_origin
 
-from elyx.contracts.container.container import Container as ContainerContract
+from elyx.contracts.container import Container as ContainerContract
 from elyx.exceptions import EntryNotFoundException
 from elyx.support import Str
 

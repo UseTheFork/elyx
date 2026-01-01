@@ -1,7 +1,7 @@
 from typing import Any
 
-from elyx.contracts.support.array_store_contract import ArrayStoreContract
-from elyx.support import Arr
+from elyx.collections import Arr
+from elyx.contracts.support import ArrayStoreContract
 
 
 class ArrayStore(ArrayStoreContract):
@@ -41,18 +41,18 @@ class ArrayStore(ArrayStoreContract):
             return {k: Arr.get(self._data, k, v) for k, v in key.items()}
         return Arr.get(self._data, key, default)
 
-    def set(self, data: dict[str, Any]) -> "ArrayStore":
+    def set(self, data: dict[str, Any]) -> ArrayStore:
         """Overwrite the entire repository."""
         self._data = data
         return self
 
-    def merge(self, *arrays: dict[str, Any]) -> "ArrayStore":
+    def merge(self, *arrays: dict[str, Any]) -> ArrayStore:
         """Merge in other arrays."""
         for array in arrays:
             self._data.update(array)
         return self
 
-    def add(self, key: str, value: Any) -> "ArrayStore":
+    def add(self, key: str, value: Any) -> ArrayStore:
         """Add an item to the repository."""
         # Handle callable values (similar to Helpers::value in PHP)
         if callable(value):
@@ -60,7 +60,7 @@ class ArrayStore(ArrayStoreContract):
         self._data[key] = value
         return self
 
-    def remove(self, key: str) -> "ArrayStore":
+    def remove(self, key: str) -> ArrayStore:
         """Remove an item from the store."""
         self._data.pop(key, None)
         return self

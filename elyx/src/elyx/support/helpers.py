@@ -1,4 +1,4 @@
-from elyx.foundation.application import Application
+from elyx.foundation import Application
 
 _app: Application | None = None
 

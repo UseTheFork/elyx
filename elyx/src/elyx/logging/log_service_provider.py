@@ -1,5 +1,5 @@
-from elyx.logging.log_manager import LogManager
-from elyx.support.service_provider import ServiceProvider
+from elyx.logging import LogManager
+from elyx.support import ServiceProvider
 
 
 class LogServiceProvider(ServiceProvider):

@@ -2,13 +2,11 @@ import inspect
 import re
 from typing import Any, Callable, TypeVar
 
-from elyx.collections.collection import Collection
-from elyx.container.container import Container
-from elyx.contracts.container.container import Container as ContainerContract
-from elyx.contracts.events.dispatcher import Dispatcher as DispatcherContract
-from elyx.support import Arr
-from elyx.support.concerns.reflects_closures import ReflectsClosures
-from elyx.support.str import Str
+from elyx.collections import Arr, Collection
+from elyx.container import Container
+from elyx.contracts.container import Container as ContainerContract
+from elyx.contracts.events import Dispatcher as DispatcherContract
+from elyx.support import ReflectsClosures, Str
 
 T = TypeVar("T")
 

@@ -1,10 +1,8 @@
 from typing import Any
 
-from elyx.console.console import Console
-from elyx.console.container_command_loader import ContainerCommandLoader
-from elyx.contracts.console.application import Application as ApplicationContract
-from elyx.contracts.console.command import Command
-from elyx.contracts.container.container import Container
+from elyx.console import Console, ContainerCommandLoader
+from elyx.contracts.console import Application as ApplicationContract, Command
+from elyx.contracts.container import Container
 
 
 class Application(ApplicationContract):

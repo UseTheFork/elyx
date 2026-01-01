@@ -1,12 +1,13 @@
-from __future__ import annotations
-
 import importlib.util
 import inspect
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from elyx.contracts.foundation.application import Application
-from elyx.contracts.foundation.bootstrapper import Bootstrapper
-from elyx.support.service_provider import ServiceProvider
+from elyx.contracts.foundation import Bootstrapper
+from elyx.support import ServiceProvider
+
+if TYPE_CHECKING:
+    from elyx.foundation import Application
 
 
 class RegisterProviders(Bootstrapper):
@@ -34,31 +35,28 @@ class RegisterProviders(Bootstrapper):
                 unique.append(provider)
         RegisterProviders._merge = unique
 
-    def bootstrap(self, app: Application) -> None:
+    def _load_providers_from_file(self, file: Path) -> list[type]:
         """
-        Register all service providers with the application.
+        Load provider classes from a Python file.
 
         Args:
-            app: The application instance.
+            file: Path to the providers file.
+
+        Returns:
+            List of provider classes found in the file.
         """
-        # Get providers from application configuration
-        providers = self._get_providers(app)
+        spec = importlib.util.spec_from_file_location("bootstrap.providers", file)
+        if spec is None or spec.loader is None:
+            return []
 
-        # Register each provider
-        for provider_class in providers:
-            # Check that provider extends ServiceProvider
-            if not (inspect.isclass(provider_class) and issubclass(provider_class, ServiceProvider)):
-                raise TypeError(
-                    f"Provider {provider_class.__name__ if inspect.isclass(provider_class) else provider_class} "
-                    f"must extend ServiceProvider"
-                )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
 
-            # Instantiate the provider
-            provider = app.make(provider_class, app=app)
+        # Look for a 'providers' list in the module
+        if hasattr(module, "providers"):
+            return module.providers
 
-            # Call the register method if it exists
-            if hasattr(provider, "register") and callable(provider.register):
-                provider.register()
+        return []
 
     def _get_providers(self, app: Application) -> list[type]:
         """
@@ -85,25 +83,28 @@ class RegisterProviders(Bootstrapper):
 
         return providers
 
-    def _load_providers_from_file(self, file: Path) -> list[type]:
+    def bootstrap(self, app: Application) -> None:
         """
-        Load provider classes from a Python file.
+        Register all service providers with the application.
 
         Args:
-            file: Path to the providers file.
-
-        Returns:
-            List of provider classes found in the file.
+            app: The application instance.
         """
-        spec = importlib.util.spec_from_file_location("bootstrap.providers", file)
-        if spec is None or spec.loader is None:
-            return []
+        # Get providers from application configuration
+        providers = self._get_providers(app)
 
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        # Register each provider
+        for provider_class in providers:
+            # Check that provider extends ServiceProvider
+            if not (inspect.isclass(provider_class) and issubclass(provider_class, ServiceProvider)):
+                raise TypeError(
+                    f"Provider {provider_class.__name__ if inspect.isclass(provider_class) else provider_class} "
+                    f"must extend ServiceProvider"
+                )
 
-        # Look for a 'providers' list in the module
-        if hasattr(module, "providers"):
-            return module.providers
+            # Instantiate the provider
+            provider = app.make(provider_class, app=app)
 
-        return []
+            # Call the register method if it exists
+            if hasattr(provider, "register") and callable(provider.register):
+                provider.register()

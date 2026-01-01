@@ -1,7 +1,7 @@
 from typing import Any, Callable
 
-from elyx.collections.collection import Collection
-from elyx.support.concerns.array_store import ArrayStore
+from elyx.collections import Collection
+from elyx.support import ArrayStore
 
 
 class Repository(ArrayStore):

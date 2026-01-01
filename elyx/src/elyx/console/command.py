@@ -1,11 +1,14 @@
 import re
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 
-from elyx.console.argument_parser import ArgumentParser
-from elyx.contracts.console.application import Application
-from elyx.contracts.console.command import Command as CommandContract
-from elyx.contracts.container.container import Container
+from elyx.console import ArgumentParser
+from elyx.contracts.console import Command as CommandContract
+
+if TYPE_CHECKING:
+    from elyx.container import Container
+    from elyx.foundation import Application
 
 
 class Command(CommandContract):
@@ -16,44 +19,6 @@ class Command(CommandContract):
     signature: str = ""
     hidden: bool = False
     console: Console | None = None
-
-    def __init__(self):
-        """Initialize command and parse signature if provided."""
-        if not self.signature:
-            raise ValueError(f"Command {self.__class__.__name__} must define a signature")
-
-        self._parsed_args = None
-        self._parse_signature()
-
-    @classmethod
-    def get_command_name(cls) -> str:
-        """Extract command name from signature without instantiation."""
-        if not hasattr(cls, "signature") or not cls.signature:
-            raise ValueError(f"Command {cls.__name__} must define a signature")
-
-        match = re.match(r"^([^\s{]+)", cls.signature)
-        if match:
-            return match.group(1)
-        return ""
-
-    def _parse_signature(self):
-        """Parse signature into name and build argparse."""
-        # Extract command name (everything before first space or {)
-        match = re.match(r"^([^\s{]+)", self.signature)
-        if match and not self.name:
-            self.name = match.group(1)
-
-        # Build parser
-        self._parser = ArgumentParser(
-            prog=self.name,
-            description=self.description,
-        )
-
-        # Find all arguments {arg} and options {--opt}
-        args_pattern = r"\{([^}]+)\}"
-        for arg_match in re.finditer(args_pattern, self.signature):
-            arg_def = arg_match.group(1)
-            self._add_argument_to_parser(arg_def)
 
     def _add_argument_to_parser(self, arg_def: str):
         """
@@ -124,6 +89,44 @@ class Command(CommandContract):
             else:
                 arg_name = arg_def.strip()
                 self._parser.add_argument(arg_name)
+
+    def _parse_signature(self):
+        """Parse signature into name and build argparse."""
+        # Extract command name (everything before first space or {)
+        match = re.match(r"^([^\s{]+)", self.signature)
+        if match and not self.name:
+            self.name = match.group(1)
+
+        # Build parser
+        self._parser = ArgumentParser(
+            prog=self.name,
+            description=self.description,
+        )
+
+        # Find all arguments {arg} and options {--opt}
+        args_pattern = r"\{([^}]+)\}"
+        for arg_match in re.finditer(args_pattern, self.signature):
+            arg_def = arg_match.group(1)
+            self._add_argument_to_parser(arg_def)
+
+    def __init__(self):
+        """Initialize command and parse signature if provided."""
+        if not self.signature:
+            raise ValueError(f"Command {self.__class__.__name__} must define a signature")
+
+        self._parsed_args = None
+        self._parse_signature()
+
+    @classmethod
+    def get_command_name(cls) -> str:
+        """Extract command name from signature without instantiation."""
+        if not hasattr(cls, "signature") or not cls.signature:
+            raise ValueError(f"Command {cls.__name__} must define a signature")
+
+        match = re.match(r"^([^\s{]+)", cls.signature)
+        if match:
+            return match.group(1)
+        return ""
 
     def parse_args(self, args: list[str]):
         """

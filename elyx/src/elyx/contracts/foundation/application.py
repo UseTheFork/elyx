@@ -2,7 +2,7 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Callable
 
-from elyx.contracts.container.container import Container
+from elyx.contracts.container import Container
 
 
 class Application(Container):
@@ -313,7 +313,7 @@ class Application(Container):
         pass
 
     @abstractmethod
-    def terminating(self, callback: Callable | str) -> "Application":
+    def terminating(self, callback: Callable | str) -> Application:
         """
         Register a terminating callback with the application.
 

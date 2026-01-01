@@ -1,6 +1,7 @@
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
-from elyx.contracts.foundation.application import Application
+if TYPE_CHECKING:
+    from elyx.foundation import Application
 
 
 class FacadeMeta(type):

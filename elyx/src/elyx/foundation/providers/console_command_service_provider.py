@@ -1,5 +1,5 @@
-from elyx.foundation.console.about_command import AboutCommand
-from elyx.support.service_provider import ServiceProvider
+from elyx.foundation import AboutCommand
+from elyx.support import ServiceProvider
 
 
 class ConsoleCommandServiceProvider(ServiceProvider):
@@ -7,13 +7,13 @@ class ConsoleCommandServiceProvider(ServiceProvider):
         "about": AboutCommand,
     }
 
-    def register(self) -> None:
-        """Register the log manager as a singleton."""
-        self._register_commands()
-
     def _register_commands(self) -> None:
         """Register all console commands."""
         self.register_commands(self._commands)
+
+    def register(self) -> None:
+        """Register the log manager as a singleton."""
+        self._register_commands()
 
     def register_commands(self, commands: dict[str, type]) -> None:
         """

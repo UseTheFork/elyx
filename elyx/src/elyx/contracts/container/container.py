@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import Any, Callable, TypeVar, Union
 
-from elyx.contracts.container.container_interface import ContainerInterface
+from elyx.contracts.container import ContainerInterface
 
 T = TypeVar("T")
 

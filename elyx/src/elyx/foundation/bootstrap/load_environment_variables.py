@@ -1,8 +1,10 @@
-from __future__ import annotations
+from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
-from elyx.contracts.foundation.application import Application
-from elyx.contracts.foundation.bootstrapper import Bootstrapper
+from elyx.contracts.foundation import Bootstrapper
+
+if TYPE_CHECKING:
+    from elyx.foundation import Application
 
 
 class LoadEnvironmentVariables(Bootstrapper):

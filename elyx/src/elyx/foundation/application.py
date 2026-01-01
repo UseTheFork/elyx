@@ -3,15 +3,12 @@ import sys
 from pathlib import Path
 from typing import Callable, Optional, TypeVar
 
-from elyx.container.container import Container
-from elyx.contracts.support.service_provider import ServiceProvider
-from elyx.events.dispatcher import Dispatcher
-from elyx.events.event_service_provider import EventServiceProvider
-from elyx.foundation.console.kernel import ConsoleKernel
-from elyx.foundation.providers.console_command_service_provider import ConsoleCommandServiceProvider
-from elyx.logging.log_service_provider import LogServiceProvider
-from elyx.support.concerns.macroable import Macroable
-from elyx.support.str import Str
+from elyx.container import Container
+from elyx.contracts.support import ServiceProvider
+from elyx.events import Dispatcher, EventServiceProvider
+from elyx.foundation import ConsoleCommandServiceProvider, ConsoleKernel
+from elyx.logging import LogServiceProvider
+from elyx.support import Macroable, Str
 
 T = TypeVar("T")
 
@@ -230,7 +227,7 @@ class Application(Container, Macroable):
         base = config_path if config_path else self.base_path("config")
         return self.join_paths(base, path)
 
-    def use_config_path(self, path: str | Path) -> "Application":
+    def use_config_path(self, path: str | Path) -> Application:
         """
         Set the configuration directory.
 
@@ -481,7 +478,7 @@ class Application(Container, Macroable):
         """
         return provider(self)
 
-    def terminating(self, callback: Callable | str) -> "Application":
+    def terminating(self, callback: Callable | str) -> Application:
         """
         Register a terminating callback with the application.
 

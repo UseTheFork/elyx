@@ -3,21 +3,16 @@
 from typing import TYPE_CHECKING
 
 from elyx._import_utils import import_attr
-from elyx.collections import Arr, Collection
 
 if TYPE_CHECKING:
     from elyx.support.concerns.array_store import ArrayStore
     from elyx.support.concerns.macroable import Macroable
     from elyx.support.concerns.reflects_closures import ReflectsClosures
-    from elyx.support.facades.config import Config
     from elyx.support.service_provider import ServiceProvider
     from elyx.support.str import Str
 
 __all__ = (
-    "Arr",
     "ArrayStore",
-    "Collection",
-    "Config",
     "Macroable",
     "ReflectsClosures",
     "ServiceProvider",
@@ -27,7 +22,6 @@ __all__ = (
 _dynamic_imports = {
     # keep-sorted start
     "ArrayStore": "concerns.array_store",
-    "Config": "facades.config",
     "Macroable": "concerns.macroable",
     "ReflectsClosures": "concerns.reflects_closures",
     "ServiceProvider": "service_provider",

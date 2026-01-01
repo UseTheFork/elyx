@@ -1,6 +1,6 @@
 from typing import Any, Iterable
 
-from elyx.contracts.collections.collection import Collection as CollectionContract
+from elyx.contracts.collections import Collection as CollectionContract
 
 
 class Collection(CollectionContract):
@@ -73,18 +73,18 @@ class Collection(CollectionContract):
                 return item
         return default
 
-    def each(self, callback: Any) -> "Collection":
+    def each(self, callback: Any) -> Collection:
         """Execute a callback over each item."""
         for key, item in self._items.items():
             if callback(item, key) is False:
                 break
         return self
 
-    def map(self, callback: Any) -> "Collection":
+    def map(self, callback: Any) -> Collection:
         """Run a map over each of the items."""
         return Collection({key: callback(item, key) for key, item in self._items.items()})
 
-    def filter(self, callback: Any | None = None) -> "Collection":
+    def filter(self, callback: Any | None = None) -> Collection:
         """Run a filter over each of the items."""
         if callback is None:
             return Collection({key: item for key, item in self._items.items() if item})

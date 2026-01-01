@@ -1,10 +1,12 @@
-from __future__ import annotations
+from typing import TYPE_CHECKING
 
-from pathlib import Path
+from elyx.config import Repository
+from elyx.contracts.foundation import Bootstrapper
 
-from elyx.config.repository import Repository
-from elyx.contracts.foundation.application import Application
-from elyx.contracts.foundation.bootstrapper import Bootstrapper
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from elyx.foundation import Application
 
 
 class LoadConfiguration(Bootstrapper):

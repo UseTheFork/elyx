@@ -1,19 +1,21 @@
-from __future__ import annotations
-
 import importlib.util
 import inspect
 from pathlib import Path
-from typing import Any, List
+from typing import TYPE_CHECKING, Any, List
 
-from elyx.console.application import Application as ConsoleApplication
-from elyx.contracts.console.kernel import Kernel as KernelContract
-from elyx.contracts.foundation.application import Application
-from elyx.foundation.bootstrap.boot_providers import BootProviders
-from elyx.foundation.bootstrap.handle_exceptions import HandleExceptions
-from elyx.foundation.bootstrap.load_configuration import LoadConfiguration
-from elyx.foundation.bootstrap.load_environment_variables import LoadEnvironmentVariables
-from elyx.foundation.bootstrap.register_facades import RegisterFacades
-from elyx.foundation.bootstrap.register_providers import RegisterProviders
+from elyx.console import Application as ConsoleApplication
+from elyx.contracts.console import Kernel as KernelContract
+from elyx.foundation import (
+    BootProviders,
+    HandleExceptions,
+    LoadConfiguration,
+    LoadEnvironmentVariables,
+    RegisterFacades,
+    RegisterProviders,
+)
+
+if TYPE_CHECKING:
+    from elyx.foundation import Application
 
 
 class ConsoleKernel(KernelContract):
@@ -28,6 +30,9 @@ class ConsoleKernel(KernelContract):
     command_started_at: float | None = None
     commands_loaded: bool = False
 
+    def __init__(self, app: Application, **kwargs):
+        self.app = app
+
     def bootstrappers(self):
         return [
             LoadEnvironmentVariables,
@@ -38,8 +43,36 @@ class ConsoleKernel(KernelContract):
             BootProviders,
         ]
 
-    def __init__(self, app: Application, **kwargs):
-        self.app = app
+    def _load_commands_from_file(self, file: Path) -> None:
+        """Load command classes from a Python file."""
+        from elyx.console.command import Command
+
+        spec = importlib.util.spec_from_file_location(file.stem, file)
+        if spec and spec.loader:
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            # Find command classes in module - check for Command subclass
+            for name, obj in inspect.getmembers(module):
+                if (
+                    inspect.isclass(obj)
+                    and issubclass(obj, Command)
+                    and obj is not Command  # Don't register the base Command class
+                    and not name.startswith("_")
+                ):
+                    self.commands.append(obj)
+
+    def _discover_commands_from_directory(self, directory: Path) -> None:
+        """
+        Auto-discover command classes from a directory.
+
+        Args:
+            directory: Path to the directory containing command files.
+        """
+        for file in directory.glob("*.py"):
+            if file.name.startswith("_"):
+                continue
+            self._load_commands_from_file(file)
         # TODO: add this back in
         # self.events = events
 
@@ -65,18 +98,6 @@ class ConsoleKernel(KernelContract):
 
             self.commands_loaded = True
 
-    def _discover_commands_from_directory(self, directory: Path) -> None:
-        """
-        Auto-discover command classes from a directory.
-
-        Args:
-            directory: Path to the directory containing command files.
-        """
-        for file in directory.glob("*.py"):
-            if file.name.startswith("_"):
-                continue
-            self._load_commands_from_file(file)
-
     def add_commands(self, commands: List[type]) -> None:
         """Register command classes directly."""
         self.commands.extend(commands)
@@ -91,37 +112,18 @@ class ConsoleKernel(KernelContract):
                         continue
                     self._load_commands_from_file(file)
 
-    def add_command_route_paths(self, paths: List[Path]) -> None:
-        """Register command route files."""
-        for path in paths:
-            if path.is_file():
-                self._load_command_routes(path)
-
-    def _load_commands_from_file(self, file: Path) -> None:
-        """Load command classes from a Python file."""
-        from elyx.console.command import Command
-
-        spec = importlib.util.spec_from_file_location(file.stem, file)
-        if spec and spec.loader:
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-
-            # Find command classes in module - check for Command subclass
-            for name, obj in inspect.getmembers(module):
-                if (
-                    inspect.isclass(obj)
-                    and issubclass(obj, Command)
-                    and obj is not Command  # Don't register the base Command class
-                    and not name.startswith("_")
-                ):
-                    self.commands.append(obj)
-
     def _load_command_routes(self, file: Path) -> None:
         """Load and execute command route file."""
         spec = importlib.util.spec_from_file_location(file.stem, file)
         if spec and spec.loader:
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
+
+    def add_command_route_paths(self, paths: List[Path]) -> None:
+        """Register command route files."""
+        for path in paths:
+            if path.is_file():
+                self._load_command_routes(path)
 
     async def call(
         self, command: str, parameters: dict[str, Any] | None = None, output_buffer: Any | None = None
