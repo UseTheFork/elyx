@@ -16,7 +16,7 @@ __all__ = (
 _dynamic_imports = {
     # keep-sorted start
     "Dispatcher": "dispatcher",
-    "EventServiceProvider": "console_logger",
+    "EventServiceProvider": "event_service_provider",
     # keep-sorted end
 }
 
