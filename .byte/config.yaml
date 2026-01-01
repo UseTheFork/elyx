@@ -143,3 +143,15 @@ system:
 web:
   enable: true
   chrome_binary_location: /etc/profiles/per-user/sincore/bin/google-chrome-stable
+git:
+  enable_scopes: true
+  scopes:
+  - collection
+  - config
+  - console
+  - container
+  - contract
+  - event
+  - foundation
+  - logging
+  - support
