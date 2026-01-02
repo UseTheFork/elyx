@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from elyx.contracts.foundation.application import Application
 from elyx.contracts.foundation.bootstrapper import Bootstrapper
-from elyx.support.facades.facade import Facade
+from elyx.support.facades import Facade
 
 if TYPE_CHECKING:
     from elyx.foundation import Application

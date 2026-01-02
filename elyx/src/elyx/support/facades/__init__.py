@@ -6,12 +6,17 @@ from elyx._import_utils import import_attr
 
 if TYPE_CHECKING:
     from elyx.support.facades.config import Config
+    from elyx.support.facades.facade import Facade
 
-__all__ = ("Config",)
+__all__ = (
+    "Config",
+    "Facade",
+)
 
 _dynamic_imports = {
     # keep-sorted start
     "Config": "config",
+    "Facade": "facade",
     # keep-sorted end
 }
 
