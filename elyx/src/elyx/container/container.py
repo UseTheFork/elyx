@@ -2,6 +2,8 @@ import inspect
 import types
 from typing import Any, Callable, TypeVar, Union, get_args, get_origin
 
+from elyx.collections import Arr
+from elyx.container.contextual_binding_builder import ContextualBindingBuilder
 from elyx.contracts.container import Container as ContainerContract
 from elyx.exceptions import EntryNotFoundException
 from elyx.support import Str
@@ -21,6 +23,7 @@ class Container(ContainerContract):
         self._bindings = {}
         self._instances = {}
         self._aliases = {}
+        self._abstract_aliases = {}
         self._resolved = {}
         self._scoped_instances = {}
         self._global_before_resolving_callbacks = []
@@ -30,6 +33,7 @@ class Container(ContainerContract):
         self._global_after_resolving_callbacks = []
         self._after_resolving_callbacks = {}
         self._rebinding_callbacks = {}
+        self._contextual_bindings = {}
         self.environment_resolver = None
 
     @classmethod
@@ -151,6 +155,25 @@ class Container(ContainerContract):
         """
         return self.resolve(abstract, **kwargs)
 
+    def _get_contextual_concrete(self, concrete: str, abstract: str | type) -> Any | None:
+        """
+        Get the contextual concrete binding for the given abstract.
+
+        Args:
+            concrete: The concrete class being built.
+            abstract: The abstract type needed.
+
+        Returns:
+            The contextual binding if found, None otherwise.
+        """
+        abstract_str = self._normalize_abstract(abstract)
+
+        if concrete in self._contextual_bindings:
+            if abstract_str in self._contextual_bindings[concrete]:
+                return self._contextual_bindings[concrete][abstract_str]
+
+        return None
+
     def _build(self, concrete: Callable, **kwargs) -> Any:
         """Build an instance of the given type with dependency injection."""
         if inspect.isclass(concrete) and inspect.isabstract(concrete):
@@ -178,14 +201,57 @@ class Container(ContainerContract):
             return concrete(**kwargs)
 
         dependencies = {}
+        concrete_str = self._normalize_abstract(concrete)
+
         for param in signature.parameters.values():
-            # Skip 'self' and variable args
-            if param.name == "self" or param.kind in [param.VAR_POSITIONAL, param.VAR_KEYWORD]:
+            # Skip 'self' and variable keyword args
+            if param.name == "self" or param.kind == param.VAR_KEYWORD:
+                continue
+
+            # Handle variadic positional parameters with type annotations
+            if param.kind == param.VAR_POSITIONAL:
+                if param.annotation is not inspect.Parameter.empty:
+                    type_to_resolve = param.annotation
+
+                    # Unwrap Optional[T] to T
+                    origin = get_origin(type_to_resolve)
+                    if origin is Union or origin is types.UnionType:
+                        args = get_args(type_to_resolve)
+                        non_none_args = [arg for arg in args if arg is not types.NoneType]
+                        if len(args) > len(non_none_args) and len(non_none_args) == 1:
+                            type_to_resolve = non_none_args[0]
+
+                    # Check for contextual binding by type
+                    contextual = self._get_contextual_concrete(concrete_str, type_to_resolve)
+                    if contextual is not None:
+                        if callable(contextual):
+                            result = contextual(self)
+                        else:
+                            result = contextual
+
+                        # If result is a list, resolve each item and add as variadic args
+                        if isinstance(result, list):
+                            for item in result:
+                                if inspect.isclass(item):
+                                    dependencies[param.name] = dependencies.get(param.name, [])
+                                    dependencies[param.name].append(self.make(item))
+                                else:
+                                    dependencies[param.name] = dependencies.get(param.name, [])
+                                    dependencies[param.name].append(item)
                 continue
 
             # If a value is already provided in kwargs, use it
             if param.name in kwargs:
                 dependencies[param.name] = kwargs.pop(param.name)
+                continue
+
+            # Check for contextual binding by parameter name first (for primitives/built-ins)
+            contextual = self._get_contextual_concrete(concrete_str, param.name)
+            if contextual is not None:
+                if callable(contextual):
+                    dependencies[param.name] = contextual(self)
+                else:
+                    dependencies[param.name] = self.make(contextual)
                 continue
 
             # Resolve from type hint
@@ -199,6 +265,15 @@ class Container(ContainerContract):
                     non_none_args = [arg for arg in args if arg is not types.NoneType]
                     if len(args) > len(non_none_args) and len(non_none_args) == 1:
                         type_to_resolve = non_none_args[0]
+
+                # Check for contextual binding by type
+                contextual = self._get_contextual_concrete(concrete_str, type_to_resolve)
+                if contextual is not None:
+                    if callable(contextual):
+                        dependencies[param.name] = contextual(self)
+                    else:
+                        dependencies[param.name] = self.make(contextual)
+                    continue
 
                 # For parameters with default values, only resolve if the type is explicitly bound.
                 if param.default is not inspect.Parameter.empty and not self.bound(type_to_resolve):
@@ -231,6 +306,26 @@ class Container(ContainerContract):
                 f"Unresolvable dependency: parameter '{param.name}' of type '{param.annotation}' in class '{concrete.__name__}'"
             )
 
+        # Handle variadic arguments - unpack lists into *args
+        variadic_args = []
+        positional_params = []
+        for key, value in list(dependencies.items()):
+            if isinstance(value, list) and key in [
+                p.name for p in signature.parameters.values() if p.kind == inspect.Parameter.VAR_POSITIONAL
+            ]:
+                variadic_args.extend(value)
+                del dependencies[key]
+
+        # Separate positional arguments that come before variadic args
+        if variadic_args:
+            for param in signature.parameters.values():
+                if param.kind == inspect.Parameter.VAR_POSITIONAL:
+                    break
+                if param.name in dependencies and param.name != "self":
+                    positional_params.append(dependencies[param.name])
+                    del dependencies[param.name]
+
+            return concrete(*positional_params, *variadic_args, **dependencies)
         return concrete(**dependencies)
 
     def _fire_callback_array(self, callbacks: list, *args) -> None:
@@ -393,6 +488,9 @@ class Container(ContainerContract):
 
         if abstract in self._aliases:
             del self._aliases[abstract]
+
+        if abstract in self._abstract_aliases:
+            del self._abstract_aliases[abstract]
 
     def _get_closure_return_types(self, closure: Callable) -> list[type]:
         """
@@ -595,13 +693,14 @@ class Container(ContainerContract):
         abstract_str = self._normalize_abstract(abstract)
         alias_str = self._normalize_abstract(alias)
 
-        if not self.bound(abstract_str):
-            raise ValueError(f"Cannot alias unbound abstract: {abstract_str}")
-
         if alias_str == abstract_str:
             raise ValueError(f"[{alias_str}] is aliased to itself.")
 
         self._aliases[alias_str] = abstract_str
+
+        if abstract_str not in self._abstract_aliases:
+            self._abstract_aliases[abstract_str] = []
+        self._abstract_aliases[abstract_str].append(alias_str)
 
     def is_alias(self, name: str) -> bool:
         """
@@ -634,10 +733,78 @@ class Container(ContainerContract):
         Flush the container of all bindings and resolved instances.
         """
         self._aliases = {}
+        self._abstract_aliases = {}
         self._resolved = {}
         self._bindings = {}
         self._instances = {}
         self._scoped_instances = {}
+        self._contextual_bindings = {}
+
+    def _get_method_dependencies(self, callback: Callable, parameters: dict[str, Any]) -> dict[str, Any]:
+        """
+        Get the dependencies for a method call with contextual binding support.
+
+        Args:
+            callback: The callable to inspect.
+            parameters: Provided parameters.
+
+        Returns:
+            Dictionary of resolved dependencies.
+        """
+        dependencies = parameters.copy()
+
+        try:
+            signature = inspect.signature(callback)
+        except (ValueError, TypeError):
+            return dependencies
+
+        # Get the class context if this is a method
+        concrete_str = None
+        if hasattr(callback, "__self__"):
+            concrete_str = self._normalize_abstract(callback.__self__.__class__)
+
+        for param in signature.parameters.values():
+            # Skip if already provided
+            if param.name in dependencies:
+                continue
+
+            # Skip self and variable args
+            if param.name == "self" or param.kind in [param.VAR_POSITIONAL, param.VAR_KEYWORD]:
+                continue
+
+            # Resolve from type hint
+            if param.annotation is not inspect.Parameter.empty:
+                type_to_resolve = param.annotation
+
+                # Unwrap Optional[T] to T
+                origin = get_origin(type_to_resolve)
+                if origin is Union or origin is types.UnionType:
+                    args = get_args(type_to_resolve)
+                    non_none_args = [arg for arg in args if arg is not types.NoneType]
+                    if len(args) > len(non_none_args) and len(non_none_args) == 1:
+                        type_to_resolve = non_none_args[0]
+
+                # Check for contextual binding if we have a concrete context
+                if concrete_str is not None:
+                    contextual = self._get_contextual_concrete(concrete_str, type_to_resolve)
+                    if contextual is not None:
+                        dependencies[param.name] = self.make(contextual)
+                        continue
+
+                # Try to resolve normally
+                if param.default is not inspect.Parameter.empty and not self.bound(type_to_resolve):
+                    continue
+
+                try:
+                    if inspect.isclass(type_to_resolve) and type_to_resolve.__module__ != "builtins":
+                        dependencies[param.name] = self.make(type_to_resolve)
+                    elif isinstance(type_to_resolve, str):
+                        dependencies[param.name] = self.make(type_to_resolve)
+                except EntryNotFoundException:
+                    if param.default is inspect.Parameter.empty:
+                        raise
+
+        return dependencies
 
     def call(
         self,
@@ -685,7 +852,9 @@ class Container(ContainerContract):
 
             callback = getattr(instance, method_name)
 
-        result = callback(**parameters)
+        # Inject dependencies for the callback
+        dependencies = self._get_method_dependencies(callback, parameters)
+        result = callback(**dependencies)
         return result
 
     def before_resolving(self, abstract, callback: Callable | None = None) -> None:
@@ -869,6 +1038,40 @@ class Container(ContainerContract):
             return False
 
         return self.environment_resolver(environments)
+
+    def when(self, concrete: str | type | list[str | type]) -> ContextualBindingBuilder:
+        """
+        Define a contextual binding.
+
+        Args:
+            concrete: The concrete class(es) that need contextual binding.
+
+        Returns:
+            ContextualBindingBuilder instance for chaining.
+        """
+        aliases = []
+
+        for c in Arr.wrap(concrete):
+            aliases.append(self.get_alias(self._normalize_abstract(c)))
+
+        return ContextualBindingBuilder(self, aliases)
+
+    def add_contextual_binding(self, concrete: str | type, abstract: str | type, implementation: Any) -> None:
+        """
+        Add a contextual binding to the container.
+
+        Args:
+            concrete: The concrete class that needs the binding.
+            abstract: The abstract type being bound.
+            implementation: The implementation to use.
+        """
+        concrete_str = self._normalize_abstract(concrete)
+        abstract_str = self._normalize_abstract(abstract)
+
+        if concrete_str not in self._contextual_bindings:
+            self._contextual_bindings[concrete_str] = {}
+
+        self._contextual_bindings[concrete_str][abstract_str] = implementation
 
     def __getitem__(self, key: str) -> Any:
         """Resolve an item from the container by key."""

@@ -6,16 +6,19 @@ from elyx._import_utils import import_attr
 
 if TYPE_CHECKING:
     from elyx.container.container import Container
+    from elyx.container.contextual_binding_builder import ContextualBindingBuilder
     from elyx.container.exceptions import EntryNotFoundException
 
 __all__ = (
     "Container",
+    "ContextualBindingBuilder",
     "EntryNotFoundException",
 )
 
 _dynamic_imports = {
     # keep-sorted start
     "Container": "container",
+    "ContextualBindingBuilder": "contextual_binding_builder",
     "EntryNotFoundException": "exceptions",
     # keep-sorted end
 }

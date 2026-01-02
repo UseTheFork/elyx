@@ -1,12 +1,16 @@
 import os
 import sys
 from pathlib import Path
-from typing import Callable, Optional, TypeVar
+from typing import Any, Callable, Optional, Self, TypeVar
 
+from elyx.config import Repository
 from elyx.container import Container
+from elyx.contracts.config import Repository as RepositoryContract
+from elyx.contracts.container import Container as ContainerContract, ContainerInterface
+from elyx.contracts.events import Dispatcher as DispatcherContract
 from elyx.contracts.support import ServiceProvider
 from elyx.events import Dispatcher, EventServiceProvider
-from elyx.foundation import ConsoleCommandServiceProvider, ConsoleKernel
+from elyx.foundation import ConsoleCommandServiceProvider, ConsoleKernel, LoadEnvironmentVariables
 from elyx.logging import LogServiceProvider
 from elyx.support import Macroable, Str
 
@@ -27,6 +31,18 @@ class Application(Container, Macroable):
         self.register(LogServiceProvider)
         self.register(ConsoleCommandServiceProvider)
 
+    def _register_core_container_aliases(self):
+        """Register the core class aliases in the container."""
+        aliases = {
+            "app": [Application, Container, ContainerContract, ContainerInterface],
+            "config": [Repository, RepositoryContract],
+            "events": [Dispatcher, DispatcherContract],
+        }
+
+        for key, alias_list in aliases.items():
+            for alias in alias_list:
+                self.alias(key, alias)
+
     def __init__(self, base_path: Optional[Path] = None):
         """Initialize the application container."""
         super().__init__()
@@ -34,6 +50,7 @@ class Application(Container, Macroable):
         # Initialize instance variables
         self._has_been_bootstrapped = False
         self._booted = False
+        self._deferred_services = {}
         self._booting_callbacks = []
         self._booted_callbacks = []
         self._terminating_callbacks = []
@@ -52,6 +69,7 @@ class Application(Container, Macroable):
         self._service_providers = {}
         self._register_base_bindings()
         self._register_base_service_providers()
+        self._register_core_container_aliases()
 
     @staticmethod
     def configure(base_path: Optional[Path] = None):
@@ -68,14 +86,6 @@ class Application(Container, Macroable):
 
         return ApplicationBuilder(Application(base_path=base_path)).with_kernels().with_commands().with_providers()
 
-    def _register_core_container_aliases(self):
-        """Register the core class aliases in the container."""
-        # aliases = {
-        #     'config':
-        # }
-        # TODO: This
-        pass
-
     async def handle_command(self, input: list[str]) -> int:
         dispatcher = self.make(Dispatcher)
         kernel = self.make(ConsoleKernel, app=self, events=dispatcher)
@@ -83,9 +93,6 @@ class Application(Container, Macroable):
         kernel.terminate()
 
         return status
-
-    def has_been_bootstrapped(self) -> bool:
-        return self._has_been_bootstrapped
 
     def bootstrap_with(self, bootstrappers: list) -> None:
         self._has_been_bootstrapped = True
@@ -181,6 +188,55 @@ class Application(Container, Macroable):
         base = app_path if app_path else self.join_paths(self.base_path(), "app")
         return self.join_paths(base, path)
 
+    def before_bootstrapping(self, bootstrapper, callback: Callable) -> None:
+        """
+        Register a callback to run before a bootstrapper.
+
+        Args:
+            bootstrapper: The bootstrapper class.
+            callback: Callback to execute before bootstrapping.
+        """
+        bootstrapper_name = self._normalize_abstract(bootstrapper)
+        self["events"].listen(f"bootstrapping: {bootstrapper_name}", callback)
+
+    def after_loading_environment(self, callback: Callable) -> None:
+        """
+        Register a callback to run after loading the environment.
+
+        Args:
+            callback: Callback to execute after bootstrapping.
+        """
+        self.after_bootstrapping(LoadEnvironmentVariables, callback)
+
+    def after_bootstrapping(self, bootstrapper, callback: Callable) -> None:
+        """
+        Register a callback to run after a bootstrapper.
+
+        Args:
+            bootstrapper: The bootstrapper class.
+            callback: Callback to execute after bootstrapping.
+        """
+        bootstrapper_name = self._normalize_abstract(bootstrapper)
+        self["events"].listen(f"bootstrapped: {bootstrapper_name}", callback)
+
+    def has_been_bootstrapped(self) -> bool:
+        """
+        Determine if the application has been bootstrapped before.
+
+        Returns:
+            True if bootstrapped, False otherwise.
+        """
+        return self._has_been_bootstrapped
+
+    def has_debug_mode_enabled(self) -> bool:
+        """
+        Determine if the application is running with debug mode enabled.
+
+        Returns:
+            True if debug mode, False otherwise.
+        """
+        return bool(self["config"].get("app.debug"))
+
     def set_base_path(self, base_path: Path):
         """Set the base path for the application."""
         self._base_path = base_path
@@ -227,7 +283,7 @@ class Application(Container, Macroable):
         base = config_path if config_path else self.base_path("config")
         return self.join_paths(base, path)
 
-    def use_config_path(self, path: str | Path) -> Application:
+    def use_config_path(self, path: str | Path) -> Self:
         """
         Set the configuration directory.
 
@@ -326,7 +382,7 @@ class Application(Container, Macroable):
         """
         return self.join_paths(self.environment_path(), self.environment_file())
 
-    def environment(self, *environments: str) -> str | bool:
+    def environment(self, *environments) -> str | bool:
         """
         Get or check the current application environment.
 
@@ -360,6 +416,15 @@ class Application(Container, Macroable):
             True if in production environment, False otherwise.
         """
         return self["env"] == "production"
+
+    def running_unit_tests(self) -> bool:
+        """
+        Determine if the application is running unit tests.
+
+        Returns:
+            True if running unit tests, False otherwise.
+        """
+        return self.bound("env") and self["env"] == "testing"
 
     def detect_environment(self, callback: Callable) -> str:
         """
@@ -478,7 +543,7 @@ class Application(Container, Macroable):
         """
         return provider(self)
 
-    def terminating(self, callback: Callable | str) -> Application:
+    def terminating(self, callback: Callable | str) -> Self:
         """
         Register a terminating callback with the application.
 
@@ -495,3 +560,158 @@ class Application(Container, Macroable):
         """Terminate the application."""
         for callback in self._terminating_callbacks:
             self.call(callback)
+
+    def get_deferred_services(self) -> dict:
+        """
+        Get the application's deferred services.
+
+        Returns:
+            Dictionary of deferred services.
+        """
+        return self._deferred_services
+
+    def set_deferred_services(self, services: dict) -> None:
+        """
+        Set the application's deferred services.
+
+        Args:
+            services: Dictionary of deferred services.
+        """
+        self._deferred_services = services
+
+    def is_deferred_service(self, service: str) -> bool:
+        """
+        Determine if the given service is a deferred service.
+
+        Args:
+            service: Service name to check.
+
+        Returns:
+            True if service is deferred, False otherwise.
+        """
+        return service in self._deferred_services
+
+    def add_deferred_services(self, services: dict) -> None:
+        """
+        Add an array of services to the application's deferred services.
+
+        Args:
+            services: Dictionary of services to add.
+        """
+        self._deferred_services.update(services)
+
+    def remove_deferred_services(self, services: list[str]) -> None:
+        """
+        Remove an array of services from the application's deferred services.
+
+        Args:
+            services: List of service names to remove.
+        """
+        for service in services:
+            self._deferred_services.pop(service, None)
+
+    def flush(self) -> None:
+        """
+        Flush the container of all bindings and resolved instances.
+        """
+        super().flush()
+
+        self._deferred_services = {}
+        self._booting_callbacks = []
+        self._booted_callbacks = []
+        self._terminating_callbacks = []
+
+    def load_deferred_providers(self) -> None:
+        """Load and boot all of the remaining deferred providers."""
+        for service in list(self._deferred_services.keys()):
+            self.load_deferred_provider(service)
+
+        self._deferred_services = {}
+
+    def load_deferred_provider(self, service: str) -> None:
+        """
+        Load the provider for a deferred service.
+
+        Args:
+            service: Service name to load.
+        """
+        if not self.is_deferred_service(service):
+            return
+
+        provider = self._deferred_services[service]
+
+        if self.get_provider(provider) is None:
+            self.register_deferred_provider(provider, service)
+
+    def register_deferred_provider(self, provider: str | type, service: str | None = None) -> None:
+        """
+        Register a deferred provider and service.
+
+        Args:
+            provider: Provider class or class name.
+            service: Optional service name.
+        """
+        if service:
+            self._deferred_services.pop(service, None)
+
+        instance = self.register(provider)
+
+        if not self.is_booted():
+            self.booting(lambda app: self._boot_provider(instance))
+
+    def _load_deferred_provider_if_needed(self, abstract: str) -> None:
+        """
+        Load the deferred provider if the given type is a deferred service and the instance has not been loaded.
+
+        Args:
+            abstract: The abstract type to check.
+        """
+        if self.is_deferred_service(abstract) and abstract not in self._instances:
+            self.load_deferred_provider(abstract)
+
+    def make(self, abstract, **kwargs) -> T | Any:
+        """
+        Resolve the given type from the container.
+
+        Args:
+            abstract: Abstract type identifier or class.
+            **kwargs: Parameters to pass to the constructor.
+
+        Returns:
+            Resolved instance.
+        """
+        abstract_str = self._normalize_abstract(abstract)
+        abstract_str = self.get_alias(abstract_str)
+        self._load_deferred_provider_if_needed(abstract_str)
+
+        return super().make(abstract, **kwargs)
+
+    def resolve(self, abstract, raise_events=True, **kwargs) -> T | Any:
+        """
+        Resolve the given type from the container.
+
+        Args:
+            abstract: Abstract type identifier or class.
+            **kwargs: Parameters to pass to the constructor.
+
+        Returns:
+            Resolved instance.
+        """
+        abstract_str = self._normalize_abstract(abstract)
+        abstract_str = self.get_alias(abstract_str)
+        self._load_deferred_provider_if_needed(abstract_str)
+
+        return super().resolve(abstract, raise_events, **kwargs)
+
+    def bound(self, abstract) -> bool:
+        """
+        Determine if the given abstract type has been bound.
+
+        Args:
+            abstract: Abstract type identifier.
+
+        Returns:
+            bool
+        """
+        abstract_str = self._normalize_abstract(abstract)
+        return self.is_deferred_service(abstract_str) or super().bound(abstract)
